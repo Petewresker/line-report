@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Logs
 logs
 *.log
@@ -137,3 +138,10 @@ dist
 # Vite logs files
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
+=======
+.aws-sam/
+node_modules/
+.env
+src/frontend/node_modules/
+src/Function/node_modules/
+>>>>>>> master

@@ -1,0 +1,403 @@
+Transform: AWS::Serverless-2016-10-31
+Resources:
+  Api:
+    Type: AWS::Serverless::Api
+    Properties:
+      Name: !Sub
+        - ${ResourceName} From Stack ${AWS::StackName}
+        - ResourceName: Api
+      StageName: Prod
+      DefinitionBody:
+        openapi: '3.0'
+        info: {}
+        paths:
+          /callback:
+            get:
+              x-amazon-apigateway-integration:
+                httpMethod: POST
+                type: aws_proxy
+                uri: !Sub arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${callback.Arn}/invocations
+              responses: {}
+          /cases:
+            get:
+              x-amazon-apigateway-integration:
+                httpMethod: POST
+                type: aws_proxy
+                uri: !Sub arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${cases.Arn}/invocations
+              responses: {}
+            post:
+              x-amazon-apigateway-integration:
+                httpMethod: POST
+                type: aws_proxy
+                uri: !Sub arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${cases.Arn}/invocations
+              responses: {}
+          /cases/{caseId}/edit:
+            post:
+              x-amazon-apigateway-integration:
+                httpMethod: POST
+                type: aws_proxy
+                uri: !Sub arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${cases.Arn}/invocations
+              responses: {}
+          /agencies/cases/{caseId}/accept:
+            post:
+              x-amazon-apigateway-integration:
+                httpMethod: POST
+                type: aws_proxy
+                uri: !Sub arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${agencies.Arn}/invocations
+              responses: {}
+          /agencies/cases/{caseId}/complete:
+            post:
+              x-amazon-apigateway-integration:
+                httpMethod: POST
+                type: aws_proxy
+                uri: !Sub arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${agencies.Arn}/invocations
+              responses: {}
+          /agencies/{agencyId}/cases/{caseId}:
+            get:
+              x-amazon-apigateway-integration:
+                httpMethod: POST
+                type: aws_proxy
+                uri: !Sub arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${agencies.Arn}/invocations
+              responses: {}
+          /agencies/{agencyId}/cases:
+            get:
+              x-amazon-apigateway-integration:
+                httpMethod: POST
+                type: aws_proxy
+                uri: !Sub arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${agencies.Arn}/invocations
+              responses: {}
+          /admin/cases/{caseId}/agencies/{agencyId}:
+            post:
+              x-amazon-apigateway-integration:
+                httpMethod: POST
+                type: aws_proxy
+                uri: !Sub arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${admin.Arn}/invocations
+              responses: {}
+      EndpointConfiguration: REGIONAL
+      TracingEnabled: true
+      Cors:
+        MaxAge: 5
+  IncidentTable:
+    Type: AWS::DynamoDB::Table
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      TableName: !Sub IncidentReports-${AWS::StackName}
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: PK
+          AttributeType: S
+        - AttributeName: SK
+          AttributeType: S
+        - AttributeName: AgencyAccessToken
+          AttributeType: S
+      KeySchema:
+        - AttributeName: PK
+          KeyType: HASH
+        - AttributeName: SK
+          KeyType: RANGE
+      GlobalSecondaryIndexes:
+        - IndexName: GSI1_AgencyPortal
+          KeySchema:
+            - AttributeName: AgencyAccessToken
+              KeyType: HASH
+            - AttributeName: PK
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+  agencies:
+    Type: AWS::Serverless::Function
+    Role: !Sub arn:aws:iam::${AWS::AccountId}:role/LabRole
+    Properties:
+      Description: !Sub
+        - Stack ${AWS::StackName} Function ${ResourceName}
+        - ResourceName: agencies
+      CodeUri: src/Function/agencies
+      Handler: index.handler
+      Runtime: nodejs22.x
+      MemorySize: 3008
+      Timeout: 30
+      Tracing: Active
+      Role: !Sub arn:aws:iam::${AWS::AccountId}:role/LabRole
+      Environment:
+        Variables:
+          TABLE_TABLE_NAME: !Ref IncidentTable
+          TABLE_TABLE_ARN: !GetAtt IncidentTable.Arn
+          IMAGEBUCKET_BUCKET_NAME: !Ref ImageBucket
+          IMAGEBUCKET_BUCKET_ARN: !GetAtt ImageBucket.Arn
+      Events:
+        ApiPOSTagenciescasescaseIdaccept:
+          Type: Api
+          Properties:
+            Path: /agencies/cases/{caseId}/accept
+            Method: POST
+            RestApiId: !Ref Api
+        ApiPOSTagenciescasescaseIdcomplete:
+          Type: Api
+          Properties:
+            Path: /agencies/cases/{caseId}/complete
+            Method: POST
+            RestApiId: !Ref Api
+        ApiGETagenciesagencyIdcasescaseId:
+          Type: Api
+          Properties:
+            Path: /agencies/{agencyId}/cases/{caseId}
+            Method: GET
+            RestApiId: !Ref Api
+        ApiGETagenciesagencyIdcases:
+          Type: Api
+          Properties:
+            Path: /agencies/{agencyId}/cases
+            Method: GET
+            RestApiId: !Ref Api
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action:
+                - s3:GetObject
+                - s3:GetObjectAcl
+                - s3:GetObjectLegalHold
+                - s3:GetObjectRetention
+                - s3:GetObjectTorrent
+                - s3:GetObjectVersion
+                - s3:GetObjectVersionAcl
+                - s3:GetObjectVersionForReplication
+                - s3:GetObjectVersionTorrent
+                - s3:ListBucket
+                - s3:ListBucketMultipartUploads
+                - s3:ListBucketVersions
+                - s3:ListMultipartUploadParts
+                - s3:AbortMultipartUpload
+                - s3:DeleteObject
+                - s3:DeleteObjectVersion
+                - s3:PutObject
+                - s3:PutObjectLegalHold
+                - s3:PutObjectRetention
+                - s3:RestoreObject
+              Resource:
+                - !Sub arn:${AWS::Partition}:s3:::${ImageBucket}
+                - !Sub arn:${AWS::Partition}:s3:::${ImageBucket}/*
+  agenciesLogGroup:
+    Type: AWS::Logs::LogGroup
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      LogGroupName: !Sub /aws/lambda/${agencies}
+  cases:
+    Type: AWS::Serverless::Function
+    Properties:
+      Description: !Sub
+        - Stack ${AWS::StackName} Function ${ResourceName}
+        - ResourceName: cases
+      CodeUri: src/Function/cases
+      Handler: index.handler
+      Runtime: nodejs22.x
+      MemorySize: 3008
+      Timeout: 30
+      Tracing: Active
+      Role: !Sub arn:aws:iam::${AWS::AccountId}:role/LabRole
+      Environment:
+        Variables:
+          TABLE_TABLE_NAME: !Ref IncidentTable
+          TABLE_TABLE_ARN: !GetAtt IncidentTable.Arn
+          IMAGEBUCKET_BUCKET_NAME: !Ref ImageBucket
+          IMAGEBUCKET_BUCKET_ARN: !GetAtt ImageBucket.Arn
+      Events:
+        ApiGETcases:
+          Type: Api
+          Properties:
+            Path: /cases
+            Method: GET
+            RestApiId: !Ref Api
+        ApiPOSTcases:
+          Type: Api
+          Properties:
+            Path: /cases
+            Method: POST
+            RestApiId: !Ref Api
+        ApiPOSTcasescaseIdedit:
+          Type: Api
+          Properties:
+            Path: /cases/{caseId}/edit
+            Method: POST
+            RestApiId: !Ref Api
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action:
+                - s3:GetObject
+                - s3:GetObjectAcl
+                - s3:GetObjectLegalHold
+                - s3:GetObjectRetention
+                - s3:GetObjectTorrent
+                - s3:GetObjectVersion
+                - s3:GetObjectVersionAcl
+                - s3:GetObjectVersionForReplication
+                - s3:GetObjectVersionTorrent
+                - s3:ListBucket
+                - s3:ListBucketMultipartUploads
+                - s3:ListBucketVersions
+                - s3:ListMultipartUploadParts
+                - s3:AbortMultipartUpload
+                - s3:DeleteObject
+                - s3:DeleteObjectVersion
+                - s3:PutObject
+                - s3:PutObjectLegalHold
+                - s3:PutObjectRetention
+                - s3:RestoreObject
+              Resource:
+                - !Sub arn:${AWS::Partition}:s3:::${ImageBucket}
+                - !Sub arn:${AWS::Partition}:s3:::${ImageBucket}/*
+  casesLogGroup:
+    Type: AWS::Logs::LogGroup
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      LogGroupName: !Sub /aws/lambda/${cases}
+  callback:
+    Type: AWS::Serverless::Function
+    Properties:
+      Description: !Sub
+        - Stack ${AWS::StackName} Function ${ResourceName}
+        - ResourceName: callback
+      CodeUri: src/Function/callback
+      Handler: index.handler
+      Runtime: nodejs22.x
+      MemorySize: 3008
+      Timeout: 30
+      Tracing: Active
+      Role: !Sub arn:aws:iam::${AWS::AccountId}:role/LabRole
+      Environment:
+        Variables:
+          TABLE_TABLE_NAME: !Ref IncidentTable
+          TABLE_TABLE_ARN: !GetAtt IncidentTable.Arn
+          IMAGEBUCKET_BUCKET_NAME: !Ref ImageBucket
+          IMAGEBUCKET_BUCKET_ARN: !GetAtt ImageBucket.Arn
+      Events:
+        ApiGETcallback:
+          Type: Api
+          Properties:
+            Path: /callback
+            Method: GET
+            RestApiId: !Ref Api
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action:
+                - s3:GetObject
+                - s3:GetObjectAcl
+                - s3:GetObjectLegalHold
+                - s3:GetObjectRetention
+                - s3:GetObjectTorrent
+                - s3:GetObjectVersion
+                - s3:GetObjectVersionAcl
+                - s3:GetObjectVersionForReplication
+                - s3:GetObjectVersionTorrent
+                - s3:ListBucket
+                - s3:ListBucketMultipartUploads
+                - s3:ListBucketVersions
+                - s3:ListMultipartUploadParts
+                - s3:AbortMultipartUpload
+                - s3:DeleteObject
+                - s3:DeleteObjectVersion
+                - s3:PutObject
+                - s3:PutObjectLegalHold
+                - s3:PutObjectRetention
+                - s3:RestoreObject
+              Resource:
+                - !Sub arn:${AWS::Partition}:s3:::${ImageBucket}
+                - !Sub arn:${AWS::Partition}:s3:::${ImageBucket}/*
+  callbackLogGroup:
+    Type: AWS::Logs::LogGroup
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      LogGroupName: !Sub /aws/lambda/${callback}
+  admin:
+    Type: AWS::Serverless::Function
+    Properties:
+      Description: !Sub
+        - Stack ${AWS::StackName} Function ${ResourceName}
+        - ResourceName: admin
+      CodeUri: src/Function/admin
+      Handler: index.handler
+      Runtime: nodejs22.x
+      MemorySize: 3008
+      Timeout: 30
+      Tracing: Active
+      Role: !Sub arn:aws:iam::${AWS::AccountId}:role/LabRole
+      Environment:
+        Variables:
+          TABLE_TABLE_NAME: !Ref IncidentTable
+          TABLE_TABLE_ARN: !GetAtt IncidentTable.Arn
+          IMAGEBUCKET_BUCKET_NAME: !Ref ImageBucket
+          IMAGEBUCKET_BUCKET_ARN: !GetAtt ImageBucket.Arn
+      Events:
+        ApiPOSTadmincasescaseIdagenciesagencyId:
+          Type: Api
+          Properties:
+            Path: /admin/cases/{caseId}/agencies/{agencyId}
+            Method: POST
+            RestApiId: !Ref Api
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action:
+                - s3:GetObject
+                - s3:GetObjectAcl
+                - s3:GetObjectLegalHold
+                - s3:GetObjectRetention
+                - s3:GetObjectTorrent
+                - s3:GetObjectVersion
+                - s3:GetObjectVersionAcl
+                - s3:GetObjectVersionForReplication
+                - s3:GetObjectVersionTorrent
+                - s3:ListBucket
+                - s3:ListBucketMultipartUploads
+                - s3:ListBucketVersions
+                - s3:ListMultipartUploadParts
+                - s3:AbortMultipartUpload
+                - s3:DeleteObject
+                - s3:DeleteObjectVersion
+                - s3:PutObject
+                - s3:PutObjectLegalHold
+                - s3:PutObjectRetention
+                - s3:RestoreObject
+              Resource:
+                - !Sub arn:${AWS::Partition}:s3:::${ImageBucket}
+                - !Sub arn:${AWS::Partition}:s3:::${ImageBucket}/*
+  adminLogGroup:
+    Type: AWS::Logs::LogGroup
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      LogGroupName: !Sub /aws/lambda/${admin}
+  ImageBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub incidentsystem-imagebuck-${AWS::AccountId}
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: aws:kms
+              KMSMasterKeyID: alias/aws/s3
+      PublicAccessBlockConfiguration:
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+  ImageBucketBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref ImageBucket
+      PolicyDocument:
+        Id: RequireEncryptionInTransit
+        Version: '2012-10-17'
+        Statement:
+          - Principal: '*'
+            Action: '*'
+            Effect: Deny
+            Resource:
+              - !GetAtt ImageBucket.Arn
+              - !Sub ${ImageBucket.Arn}/*
+            Condition:
+              Bool:
+                aws:SecureTransport: 'false'
