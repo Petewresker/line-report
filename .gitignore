@@ -1,0 +1,5 @@
+.aws-sam/
+node_modules/
+.env
+src/frontend/node_modules/
+src/Function/node_modules/
