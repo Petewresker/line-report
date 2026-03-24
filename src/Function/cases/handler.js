@@ -1,5 +1,5 @@
 // handler.js - validate แล้วเรียก service
-import { editCaseService, getCasesByUserService } from './service.js'
+import { editCaseService, getCasesByUserService, getAllCasesService } from './service.js'
 export const editCaseHandler = async (event) => {
   const { caseId } = event.pathParameters
   const body = JSON.parse(event.body)
@@ -9,6 +9,11 @@ export const editCaseHandler = async (event) => {
 
 export const getCasesByUser = async (event) => {
   const { userId } = event.queryStringParameters || {}
-  const result = await getCasesByUserService(userId)
+  
+  const result = userId 
+    ? await getCasesByUserService(userId)
+    // Endpoint GET /cases ดึงข้อมูลทั้งหมดได้เมื่อไม่มี userId 
+    : await getAllCasesService() 
+    
   return { statusCode: 200, body: JSON.stringify(result) }
 }
