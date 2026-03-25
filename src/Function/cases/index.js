@@ -1,11 +1,18 @@
+import { getCasesByUser } from "./handler";
+
 // cases/index.js
-import { getCasesByUser, editCaseHandler } from './handler.js'
-
 export const handler = async (event) => {
-  const { httpMethod, path } = event
+  console.log(JSON.stringify(event, undefined, 2));
 
-  if (httpMethod === 'GET' && path === '/cases')       return getCasesByUser(event)
-  if (httpMethod === 'POST' && path.includes('/edit')) return editCaseHandler(event)
+  const method = event.httpMethod;
+  const path = event.path;
 
-  return { statusCode: 404, body: 'Not found' }
-}
+  if (method === "GET" && path === "/cases") {
+    return await getCasesByUser()
+  }
+
+  return {
+    statusCode: 404,
+    body: JSON.stringify({ message: "Not Found" }),
+  };
+};
