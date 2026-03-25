@@ -1,3 +1,6 @@
+<<<<<<< HEAD
+# line-report
+=======
 line-report-project
 
 repo นี้ประกอบด้วย 3 folder หลัก
@@ -9,3 +12,4 @@ repo นี้ประกอบด้วย 3 folder หลัก
 อธิบายเพิ่มเติม
 aws-sam อันนี้เป็นโฟลเดอร์สําหรับการรัน sam-build 
 frontend มี src = สําหรับไฟล์ต่างๆ ข้างในก็จะมี app
+>>>>>>> master
