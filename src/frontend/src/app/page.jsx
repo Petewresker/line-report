@@ -15,6 +15,7 @@ export default function Home() {
   const inputRef = useRef(null);
   const [locState, setLocState] = useState("idle");
   const [coords, setCoords] = useState(null);
+  const [submitState, setSubmitState] = useState("idle"); // idle | loading | success | error
 
   // ── LIFF Init & Login ──────────────────────────────────────────────────────
   useEffect(() => {
@@ -41,6 +42,8 @@ export default function Home() {
 
   // ── Handlers ───────────────────────────────────────────────────────────────
   const handleSubmit = async () => {
+    if (submitState === "loading" || submitState === "success") return;
+    setSubmitState("loading");
     try {
       let imageKey = null;
 
@@ -80,8 +83,10 @@ export default function Home() {
       if (!res.ok) throw new Error(`Server error: ${res.status}`);
       const result = await res.json();
       console.log("Case created:", result);
+      setSubmitState("success");
     } catch (err) {
       console.error("Submit failed:", err);
+      setSubmitState("idle");
     }
   };
 
@@ -275,12 +280,47 @@ export default function Home() {
 
         {/* Submit */}
         <button
-          className="w-full mt-4 py-3 rounded-xl text-white font-semibold text-sm"
-          style={{ backgroundColor: "#F29A4E" }}
+          className={`w-full mt-4 py-3 rounded-xl text-white font-semibold text-sm flex items-center justify-center gap-2 transition-all duration-300 ${
+            submitState === "success"
+              ? "bg-green-500 scale-[1.02]"
+              : submitState === "loading"
+              ? "opacity-70 cursor-not-allowed"
+              : "hover:brightness-110 active:scale-95"
+          }`}
+          style={submitState !== "success" ? { backgroundColor: "#F29A4E" } : {}}
           onClick={handleSubmit}
+          disabled={submitState === "loading" || submitState === "success"}
         >
-          Submit Confirmed
+          {submitState === "loading" && (
+            <svg className="w-4 h-4 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+            </svg>
+          )}
+          {submitState === "success" && (
+            <svg
+              className="w-5 h-5 animate-[checkmark_0.4s_ease-out_forwards]"
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="3"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              style={{ strokeDasharray: 30, strokeDashoffset: 0, animation: "draw 0.4s ease-out forwards" }}
+            >
+              <polyline points="20 6 9 17 4 12" />
+            </svg>
+          )}
+          {submitState === "success" ? "รับเรื่องแล้ว!" : submitState === "loading" ? "กำลังส่ง..." : "Submit Confirmed"}
         </button>
+
+        <style>{`
+          @keyframes draw {
+            from { stroke-dashoffset: 30; }
+            to   { stroke-dashoffset: 0; }
+          }
+        `}</style>
 
         <img src="capibara_san.png" alt="capibara" />
       </div>
