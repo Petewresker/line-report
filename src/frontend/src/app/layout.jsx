@@ -1,3 +1,7 @@
+import { Inter } from 'next/font/google'
+
+const inter = Inter({ subsets: ['latin', 'latin-ext'] })
+
 export const metadata = {
   title: "Line Report",
 };
@@ -5,7 +9,7 @@ export const metadata = {
 export default function RootLayout({ children }) {
   return (
     <html lang="th">
-      <body>{children}</body>
+      <body className={inter.className}>{children}</body>
     </html>
   );
 }
