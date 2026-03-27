@@ -1,9 +1,10 @@
 version = 0.1
 
 [default.deploy.parameters]
-stack_name = "incidentSystem"
+stack_name = "Incident"
 resolve_s3 = true
-s3_prefix = "incidentSystem"
+s3_prefix = "Incident"
+region = "us-east-1"
 confirm_changeset = true
 capabilities = "CAPABILITY_IAM"
 disable_rollback = true
