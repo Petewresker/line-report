@@ -151,6 +151,7 @@ Resources:
           TABLE_TABLE_ARN: !GetAtt IncidentTable.Arn
           IMAGEBUCKET_BUCKET_NAME: !Ref ImageBucket
           IMAGEBUCKET_BUCKET_ARN: !GetAtt ImageBucket.Arn
+          DYNAMODB_ENDPOINT: ''
       Events:
         ApiPOSTagenciescasescaseIdaccept:
           Type: Api
@@ -176,33 +177,6 @@ Resources:
             Path: /agencies/{agencyId}/cases
             Method: GET
             RestApiId: !Ref Api
-      Policies:
-        - Statement:
-            - Effect: Allow
-              Action:
-                - s3:GetObject
-                - s3:GetObjectAcl
-                - s3:GetObjectLegalHold
-                - s3:GetObjectRetention
-                - s3:GetObjectTorrent
-                - s3:GetObjectVersion
-                - s3:GetObjectVersionAcl
-                - s3:GetObjectVersionForReplication
-                - s3:GetObjectVersionTorrent
-                - s3:ListBucket
-                - s3:ListBucketMultipartUploads
-                - s3:ListBucketVersions
-                - s3:ListMultipartUploadParts
-                - s3:AbortMultipartUpload
-                - s3:DeleteObject
-                - s3:DeleteObjectVersion
-                - s3:PutObject
-                - s3:PutObjectLegalHold
-                - s3:PutObjectRetention
-                - s3:RestoreObject
-              Resource:
-                - !Sub arn:${AWS::Partition}:s3:::${ImageBucket}
-                - !Sub arn:${AWS::Partition}:s3:::${ImageBucket}/*
   agenciesLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
@@ -226,6 +200,7 @@ Resources:
           TABLE_TABLE_ARN: !GetAtt IncidentTable.Arn
           IMAGEBUCKET_BUCKET_NAME: !Ref ImageBucket
           IMAGEBUCKET_BUCKET_ARN: !GetAtt ImageBucket.Arn
+          DYNAMODB_ENDPOINT: ''
       Events:
         ApiGETcases:
           Type: Api
@@ -354,6 +329,7 @@ Resources:
           TABLE_TABLE_ARN: !GetAtt IncidentTable.Arn
           IMAGEBUCKET_BUCKET_NAME: !Ref ImageBucket
           IMAGEBUCKET_BUCKET_ARN: !GetAtt ImageBucket.Arn
+          DYNAMODB_ENDPOINT: ''
       Events:
         ApiPOSTadmincasescaseIdagenciesagencyId:
           Type: Api
