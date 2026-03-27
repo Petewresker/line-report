@@ -1,6 +1,16 @@
-exports.handler = async event => {
-  // Log the event argument for debugging and for use in local development.
-  console.log(JSON.stringify(event, undefined, 2));
+// agencies/index.js
+import { acceptCase } from './handler.js'
 
-  return {};
-};
+export const handler = async (event) => {
+  const { httpMethod, resource, pathParameters } = event
+
+  if (httpMethod === 'POST' && resource === '/agencies/cases/{caseId}/accept'){
+    const { caseId } = pathParameters || {}
+
+    return acceptCase({...event, caseId})
+  }
+  return { 
+    statusCode: 404, 
+    body: JSON.stringify({ message: 'Not found' })
+  }
+}
