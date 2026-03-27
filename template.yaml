@@ -18,6 +18,13 @@ Resources:
                 type: aws_proxy
                 uri: !Sub arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${callback.Arn}/invocations
               responses: {}
+          /cases/presigned-url:
+            get:
+              x-amazon-apigateway-integration:
+                httpMethod: POST
+                type: aws_proxy
+                uri: !Sub arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${cases.Arn}/invocations
+              responses: {}
           /cases:
             get:
               x-amazon-apigateway-integration:
@@ -202,6 +209,12 @@ Resources:
           IMAGEBUCKET_BUCKET_ARN: !GetAtt ImageBucket.Arn
           DYNAMODB_ENDPOINT: ''
       Events:
+        ApiGETcasesPresignedUrl:
+          Type: Api
+          Properties:
+            Path: /cases/presigned-url
+            Method: GET
+            RestApiId: !Ref Api
         ApiGETcases:
           Type: Api
           Properties:
