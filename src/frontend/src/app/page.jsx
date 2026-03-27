@@ -9,7 +9,7 @@ export default function Home() {
   const [liffError, setLiffError] = useState(null);
 
   const [photoPreview, setPhotoPreview] = useState(null);
-  const [photoBase64, setPhotoBase64] = useState(null);
+  const [photoFile, setPhotoFile] = useState(null);
   const [topic, setTopic] = useState("");
   const [detail, setDetail] = useState("");
   const inputRef = useRef(null);
@@ -40,25 +40,56 @@ export default function Home() {
   }, []);
 
   // ── Handlers ───────────────────────────────────────────────────────────────
-  const handleSubmit = () => {
-    const payload = {
-      topic,
-      detail,
-      photo: photoBase64 ?? null,
-      location: coords ? { lat: coords.lat, lng: coords.lng } : null,
-      lineUserId: profile?.userId ?? null,
-    };
-    console.log("Submit payload:", JSON.stringify(payload, null, 2));
-    // TODO: await fetch("/api/incident", { method: "POST", body: JSON.stringify(payload) })
+  const handleSubmit = async () => {
+    try {
+      let imageKey = null;
+
+      if (photoFile) {
+        // 1. ขอ presigned URL จาก backend
+        const presignedRes = await fetch(
+          `${process.env.NEXT_PUBLIC_API_URL}/cases/presigned-url?filename=${encodeURIComponent(photoFile.name)}&contentType=${encodeURIComponent(photoFile.type)}`
+        );
+        const { uploadUrl, key } = await presignedRes.json();
+
+        // 2. PUT รูปตรงไป S3
+        await fetch(uploadUrl, {
+          method: "PUT",
+          body: photoFile,
+          headers: { "Content-Type": photoFile.type },
+        });
+
+        imageKey = key;
+      }
+
+      // 3. POST ข้อมูล case ไป backend
+      const payload = {
+        title: topic,
+        description: detail,
+        userId: profile?.userId ?? null,
+        lat: coords?.lat ?? null,
+        lon: coords?.lng ?? null,
+        imageUrlBefore: imageKey,
+      };
+
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/cases`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      if (!res.ok) throw new Error(`Server error: ${res.status}`);
+      const result = await res.json();
+      console.log("Case created:", result);
+    } catch (err) {
+      console.error("Submit failed:", err);
+    }
   };
 
   const handleCapture = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
     setPhotoPreview(URL.createObjectURL(file));
-    const reader = new FileReader();
-    reader.onload = () => setPhotoBase64(reader.result);
-    reader.readAsDataURL(file);
+    setPhotoFile(file);
     e.target.value = "";
   };
 
@@ -122,6 +153,11 @@ export default function Home() {
             onChange={(e) => setTopic(e.target.value)}
           >
             <option value="" disabled>-- Select Topic --</option>
+            <option value="Road & Pavement Damage">Road & Pavement Damage</option>
+            <option value="Flooding & Drainage">Flooding & Drainage</option>
+            <option value="Streetlight Malfunction">Streetlight Malfunction</option>
+            <option value="Illegal Dumping & Waste">Illegal Dumping & Waste</option>
+            <option value="Public Safety Hazard">Public Safety Hazard</option>
           </select>
           <div className="pointer-events-none absolute inset-y-0 right-3 flex items-center">
             <svg className="w-3 h-3 text-gray-500" viewBox="0 0 10 6" fill="currentColor">
@@ -160,7 +196,7 @@ export default function Home() {
               onClick={() => {
                 URL.revokeObjectURL(photoPreview);
                 setPhotoPreview(null);
-                setPhotoBase64(null);
+                setPhotoFile(null);
               }}
               className="absolute top-2 right-2 bg-black bg-opacity-50 rounded-full p-1"
             >
