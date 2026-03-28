@@ -1,0 +1,6 @@
+@import "tailwindcss";
+@plugin "@tailwindcss/forms";
+
+* {
+  font-family: var(--font-inter), 'Sarabun', sans-serif;
+}
