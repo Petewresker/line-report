@@ -14,6 +14,7 @@ const dynamoDB = DynamoDBDocumentClient.from(client);
 
 const TABLE_NAME = "IncidentReports-local";
 
+// ดึงเคสเดียวตาม agencyId + caseId
 export async function getCaseById(agencyId, caseId) {
   const result = await dynamoDB.send(
     new GetCommand({
@@ -28,6 +29,7 @@ export async function getCaseById(agencyId, caseId) {
   return result.Item;
 }
 
+// ดึงทุกเคสของ agency เดียวกัน
 export async function getCasesByAgencyId(agencyId) {
   const result = await dynamoDB.send(
     new QueryCommand({
