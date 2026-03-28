@@ -38,6 +38,12 @@ Resources:
                 type: aws_proxy
                 uri: !Sub arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${cases.Arn}/invocations
               responses: {}
+            delete:
+              x-amazon-apigateway-integration:
+                httpMethod: POST
+                type: aws_proxy
+                uri: !Sub arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${cases.Arn}/invocations
+              responses: {}
           /cases/{caseId}/edit:
             post:
               x-amazon-apigateway-integration:
@@ -80,9 +86,33 @@ Resources:
                 type: aws_proxy
                 uri: !Sub arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${admin.Arn}/invocations
               responses: {}
+          /cases/hotspots:
+            get:
+              x-amazon-apigateway-integration:
+                httpMethod: POST
+                type: aws_proxy
+                uri: !Sub arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${cases.Arn}/invocations
+              responses: {}
+          /cases/trends:
+            get:
+              x-amazon-apigateway-integration:
+                httpMethod: POST
+                type: aws_proxy
+                uri: !Sub arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${cases.Arn}/invocations
+              responses: {}
+          /cases/resolution:
+            get:
+              x-amazon-apigateway-integration:
+                httpMethod: POST
+                type: aws_proxy
+                uri: !Sub arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${cases.Arn}/invocations
+              responses: {}
       EndpointConfiguration: REGIONAL
       TracingEnabled: true
       Cors:
+        AllowOrigin: "'*'"
+        AllowHeaders: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key'"
+        AllowMethods: "'GET,POST,DELETE,OPTIONS'"
         MaxAge: 5
 
   IncidentTable:
@@ -232,6 +262,30 @@ Resources:
           Properties:
             Path: /cases/{caseId}/edit
             Method: POST
+            RestApiId: !Ref Api
+        ApiGETcasesHotspots:
+          Type: Api
+          Properties:
+            Path: /cases/hotspots
+            Method: GET
+            RestApiId: !Ref Api
+        ApiGETcasesTrends:
+          Type: Api
+          Properties:
+            Path: /cases/trends
+            Method: GET
+            RestApiId: !Ref Api
+        ApiGETcasesResolution:
+          Type: Api
+          Properties:
+            Path: /cases/resolution
+            Method: GET
+            RestApiId: !Ref Api
+        ApiDELETEcases:
+          Type: Api
+          Properties:
+            Path: /cases
+            Method: DELETE
             RestApiId: !Ref Api
       Policies:
         - Statement:
@@ -393,6 +447,16 @@ Resources:
       PublicAccessBlockConfiguration:
         IgnorePublicAcls: true
         RestrictPublicBuckets: true
+      CorsConfiguration:
+        CorsRules:
+          - AllowedOrigins:
+              - '*'
+            AllowedMethods:
+              - PUT
+              - GET
+            AllowedHeaders:
+              - '*'
+            MaxAge: 3000
   ImageBucketBucketPolicy:
     Type: AWS::S3::BucketPolicy
     Properties:

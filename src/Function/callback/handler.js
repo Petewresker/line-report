@@ -1,31 +1,59 @@
-import { getCasesByUserId } from "./service.js";
+import { getCasesByUserService } from "./service.js";
 import { replyLine } from "./line.js";
 
 const LIFF_URL = process.env.LIFF_URL;
 
 const STATUS_LABEL = {
-  pending:     { text: "สถานะ : รอดำเนินการ",         color: "#F29A4E" },
-  in_progress: { text: "สถานะ : กำลังดำเนินการแก้ไข", color: "#008000" },
-  completed:   { text: "สถานะ : เสร็จสิ้น",            color: "#4A90D9" },
+  PENDING:     { text: "สถานะ : รอดำเนินการ",      color: "#F29A4E" },
+  FORWARD:     { text: "สถานะ : กำลังส่งมอบ",       color: "#9B59B6" },
+  IN_PROGRESS: { text: "สถานะ : กำลังดำเนินการ",    color: "#008000" },
+  FINISHED:    { text: "สถานะ : แก้ไขสำเร็จแล้ว",   color: "#4A90D9" },
 };
 
 export async function handleSendReport(replyToken) {
   await replyLine(replyToken, [
     {
-      type: "template",
+      type: "flex",
       altText: "แจ้งเหตุ — กดเพื่อเปิดฟอร์ม",
-      template: {
-        type: "buttons",
-        title: "แจ้งเหตุการณ์",
-        text: "กดปุ่มด้านล่างเพื่อเปิดฟอร์มแจ้งเหตุ",
-        actions: [{ type: "uri", label: "เปิดฟอร์มแจ้งเหตุ", uri: LIFF_URL }],
+      contents: {
+        type: "bubble",
+        hero: {
+          type: "image",
+          url: "https://incident-line-tu.s3.us-east-1.amazonaws.com/Group+168.png",
+          size: "full",
+          aspectRatio: "20:13",
+          aspectMode: "cover",
+        },
+        body: {
+          type: "box",
+          layout: "vertical",
+          contents: [
+            { type: "text", text: "แจ้งเหตุการณ์", weight: "bold", size: "xl" },
+            { type: "text", text: "กรุณากดปุ่มด้านล่างเพื่อแจ้งเหตุ" },
+          ],
+        },
+        footer: {
+          type: "box",
+          layout: "vertical",
+          spacing: "sm",
+          flex: 0,
+          contents: [
+            {
+              type: "button",
+              style: "link",
+              height: "sm",
+              action: { type: "uri", label: "เปิดฟอร์มแจ้งเหตุ", uri: LIFF_URL },
+            },
+            { type: "box", layout: "vertical", contents: [], margin: "sm" },
+          ],
+        },
       },
     },
   ]);
 }
 
 export async function handleListCases(replyToken, userId) {
-  const cases = await getCasesByUserId(userId);
+  const cases = await getCasesByUserService(userId);
 
   if (!cases || cases.length === 0) {
     await replyLine(replyToken, [
@@ -45,49 +73,41 @@ export async function handleListCases(replyToken, userId) {
   ]);
 }
 
-function buildCaseBubble(c, index) {
+function buildCaseBubble(c) {
   const status = STATUS_LABEL[c.status] ?? { text: c.status, color: "#888888" };
 
   return {
     type: "bubble",
-    size: "kilo",
     hero: {
       type: "image",
       url: c.imageUrl || "https://via.placeholder.com/400x300?text=No+Image",
       size: "full",
-      aspectRatio: "4:3",
+      aspectRatio: "20:13",
       aspectMode: "cover",
     },
     body: {
       type: "box",
       layout: "vertical",
-      spacing: "sm",
       contents: [
         {
-          type: "text",
-          text: c.description,
-          weight: "bold",
-          size: "sm",
-          wrap: true,
-          maxLines: 2,
-        },
-        {
           type: "box",
-          layout: "vertical",
-          flex: 0,
-          width: "60px",
-          backgroundColor: "#808080",
-          cornerRadius: "md",
-          paddingAll: "xs",
+          layout: "horizontal",
           contents: [
             {
               type: "text",
-              text: c.topic ?? "อื่นๆ",
-              size: "xs",
-              color: "#FFFFFF",
-              align: "center",
+              text: c.title ?? "-",
+              style: "italic",
+              weight: "bold",
+              decoration: "underline",
+              wrap: true,
             },
           ],
+        },
+        {
+          type: "text",
+          text: c.description ?? "-",
+          size: "md",
+          wrap: true,
         },
       ],
     },
@@ -95,29 +115,19 @@ function buildCaseBubble(c, index) {
       type: "box",
       layout: "vertical",
       spacing: "sm",
+      flex: 0,
       contents: [
-        {
-          type: "text",
-          text: status.text,
-          size: "sm",
-          color: status.color,
-          align: "center",
-        },
         {
           type: "button",
           style: "link",
           height: "sm",
-          color: "#4A90D9",
           action: {
-            type: "message",
-            label: "แก้ไข",
-            text: `แก้ไขรายการ #${index}`,
+            type: "uri",
+            label: status.text,
+            uri: LIFF_URL,
           },
         },
       ],
-    },
-    styles: {
-      footer: { separator: true, separatorColor: "#CCCCCC" },
     },
   };
 }
