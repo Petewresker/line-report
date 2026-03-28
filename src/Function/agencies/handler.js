@@ -1,4 +1,4 @@
-import { getCaseById, getCasesByAgencyId } from "./service.js";
+import { getCaseById, getCasesByAgencyId, registrationService, getAgencyPresignedUrlService } from "./service.js";
 
 function normalizeHeaders(headers = {}) {
   return Object.fromEntries(
@@ -95,6 +95,66 @@ export async function handleGetCaseById(event) {
     return {
       statusCode: 200,
       body: JSON.stringify(item)
+    };
+  } catch (error) {
+    return {
+      statusCode: 500,
+      body: JSON.stringify({ message: error.message })
+    };
+  }
+}
+
+
+export async function handleGetPresignUrl(event) {
+  const { filename, contentType } = JSON.parse(event.body || "{}");
+
+  if (!filename || !contentType) {
+    return {
+      statusCode: 400,
+      body: JSON.stringify({ message: "Missing filename or contentType" })
+    };
+  }
+
+  try {
+    const result = await getAgencyPresignedUrlService(filename, contentType);
+    return {
+      statusCode: 200,
+      body: JSON.stringify(result)
+    };
+  } catch (error) {
+    return {
+      statusCode: 500,
+      body: JSON.stringify({ message: error.message })
+    };
+  }
+}
+
+export async function handleRegistration(event) {
+  const headers = normalizeHeaders(event.headers || {});
+  const userId = headers["userid"] || headers["user-id"];
+
+  if (!userId) {
+    return {
+      statusCode: 400,
+      body: JSON.stringify({ message: "Missing authentication data" })
+    };
+  }
+
+  const body = JSON.parse(event.body);
+  const { name, surname, phoneNumber, agencyName, lineUserID, email } = body;
+
+  if (!name || !surname || !phoneNumber || !agencyName) {
+    return {
+      statusCode: 400,
+      body: JSON.stringify({ message: "Missing required fields: name, surname, phoneNumber, agencyName" })
+    };
+  }
+
+  try {
+    const result = await registrationService({ userId, name, surname, phoneNumber, agencyName, lineUserID, email });
+    return {
+      statusCode: 201,
+      body: JSON.stringify({ message: "Registration submitted. Pending review.", agency: result })
     };
   } catch (error) {
     return {

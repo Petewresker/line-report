@@ -2,6 +2,8 @@ import { getCasesByUserService } from "./service.js";
 import { replyLine } from "./line.js";
 
 const LIFF_URL = process.env.LIFF_URL;
+const AGENCY_WEB_LIFF_URL = process.env.AGENCY_WEB_LIFF_URL ?? "https://example.com";
+const AGENCY_REGISTER_LIFF_URL = process.env.AGENCY_REGISTER_LIFF_URL ?? "https://example.com";
 
 const STATUS_LABEL = {
   PENDING:     { text: "สถานะ : รอดำเนินการ",      color: "#F29A4E" },
@@ -45,6 +47,60 @@ export async function handleSendReport(replyToken) {
               action: { type: "uri", label: "เปิดฟอร์มแจ้งเหตุ", uri: LIFF_URL },
             },
             { type: "box", layout: "vertical", contents: [], margin: "sm" },
+          ],
+        },
+      },
+    },
+  ]);
+}
+
+export async function handleAgencyInfo(replyToken) {
+  await replyLine(replyToken, [
+    {
+      type: "flex",
+      altText: "สำหรับเจ้าหน้าที่",
+      contents: {
+        type: "bubble",
+        hero: {
+          type: "image",
+          url: "https://incident-line-tu.s3.us-east-1.amazonaws.com/Group+174.png",
+          size: "full",
+          aspectRatio: "20:13",
+          aspectMode: "cover",
+        },
+        body: {
+          type: "box",
+          layout: "vertical",
+          contents: [
+            { type: "text", text: "สำหรับเจ้าหน้าที่", weight: "bold", size: "xl" },
+            {
+              type: "text",
+              text: "สำหรับเจ้าหน้าที่จากหน่วยงานใดๆสามารถใช้ฟังก์ชันของเราได้เลยย",
+              wrap: true,
+              size: "sm",
+              color: "#888888",
+              margin: "sm",
+            },
+          ],
+        },
+        footer: {
+          type: "box",
+          layout: "vertical",
+          spacing: "sm",
+          flex: 0,
+          contents: [
+            {
+              type: "button",
+              style: "primary",
+              height: "sm",
+              action: { type: "uri", label: "ใช้งาน Problem Seeker", uri: "https://example.com" },
+            },
+            {
+              type: "button",
+              style: "link",
+              height: "sm",
+              action: { type: "uri", label: "สมัครเจ้าหน้าที่", uri: "https://example.com" },
+            },
           ],
         },
       },
