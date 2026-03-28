@@ -52,16 +52,10 @@ export default function Home() {
         const presignedRes = await fetch(
           `${process.env.NEXT_PUBLIC_API_URL}/cases/presigned-url?filename=${encodeURIComponent(photoFile.name)}&contentType=${encodeURIComponent(photoFile.type)}`
         );
-
-
-        console.log("presigned status:", presignedRes.status);
-        const presignedData = await presignedRes.json();
-        console.log("presigned data:", presignedData);
-        const { uploadUrl, key } = presignedData;
-        console.log("uploadUrl:", uploadUrl);
+        const { uploadUrl, key } = await presignedRes.json();
 
         // 2. PUT รูปตรงไป S3
-        const s3Res = await fetch(uploadUrl, {
+        await fetch(uploadUrl, {
           method: "PUT",
           body: photoFile,
           headers: { "Content-Type": photoFile.type },
@@ -334,3 +328,4 @@ export default function Home() {
     </div>
   );
 }
+
