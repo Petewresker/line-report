@@ -12,11 +12,18 @@ Resources:
         info: {}
         paths:
           /callback:
-            get:
+            post:
               x-amazon-apigateway-integration:
                 httpMethod: POST
                 type: aws_proxy
                 uri: !Sub arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${callback.Arn}/invocations
+              responses: {}
+          /cases/presigned-url:
+            get:
+              x-amazon-apigateway-integration:
+                httpMethod: POST
+                type: aws_proxy
+                uri: !Sub arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${cases.Arn}/invocations
               responses: {}
           /cases:
             get:
@@ -26,6 +33,12 @@ Resources:
                 uri: !Sub arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${cases.Arn}/invocations
               responses: {}
             post:
+              x-amazon-apigateway-integration:
+                httpMethod: POST
+                type: aws_proxy
+                uri: !Sub arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${cases.Arn}/invocations
+              responses: {}
+            delete:
               x-amazon-apigateway-integration:
                 httpMethod: POST
                 type: aws_proxy
@@ -73,9 +86,33 @@ Resources:
                 type: aws_proxy
                 uri: !Sub arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${admin.Arn}/invocations
               responses: {}
+          /cases/hotspots:
+            get:
+              x-amazon-apigateway-integration:
+                httpMethod: POST
+                type: aws_proxy
+                uri: !Sub arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${cases.Arn}/invocations
+              responses: {}
+          /cases/trends:
+            get:
+              x-amazon-apigateway-integration:
+                httpMethod: POST
+                type: aws_proxy
+                uri: !Sub arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${cases.Arn}/invocations
+              responses: {}
+          /cases/resolution:
+            get:
+              x-amazon-apigateway-integration:
+                httpMethod: POST
+                type: aws_proxy
+                uri: !Sub arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${cases.Arn}/invocations
+              responses: {}
       EndpointConfiguration: REGIONAL
       TracingEnabled: true
       Cors:
+        AllowOrigin: "'*'"
+        AllowHeaders: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key'"
+        AllowMethods: "'GET,POST,DELETE,OPTIONS'"
         MaxAge: 5
 
   IncidentTable:
@@ -151,6 +188,7 @@ Resources:
           TABLE_TABLE_ARN: !GetAtt IncidentTable.Arn
           IMAGEBUCKET_BUCKET_NAME: !Ref ImageBucket
           IMAGEBUCKET_BUCKET_ARN: !GetAtt ImageBucket.Arn
+          DYNAMODB_ENDPOINT: ''
       Events:
         ApiPOSTagenciescasescaseIdaccept:
           Type: Api
@@ -176,33 +214,6 @@ Resources:
             Path: /agencies/{agencyId}/cases
             Method: GET
             RestApiId: !Ref Api
-      Policies:
-        - Statement:
-            - Effect: Allow
-              Action:
-                - s3:GetObject
-                - s3:GetObjectAcl
-                - s3:GetObjectLegalHold
-                - s3:GetObjectRetention
-                - s3:GetObjectTorrent
-                - s3:GetObjectVersion
-                - s3:GetObjectVersionAcl
-                - s3:GetObjectVersionForReplication
-                - s3:GetObjectVersionTorrent
-                - s3:ListBucket
-                - s3:ListBucketMultipartUploads
-                - s3:ListBucketVersions
-                - s3:ListMultipartUploadParts
-                - s3:AbortMultipartUpload
-                - s3:DeleteObject
-                - s3:DeleteObjectVersion
-                - s3:PutObject
-                - s3:PutObjectLegalHold
-                - s3:PutObjectRetention
-                - s3:RestoreObject
-              Resource:
-                - !Sub arn:${AWS::Partition}:s3:::${ImageBucket}
-                - !Sub arn:${AWS::Partition}:s3:::${ImageBucket}/*
   agenciesLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
@@ -226,7 +237,14 @@ Resources:
           TABLE_TABLE_ARN: !GetAtt IncidentTable.Arn
           IMAGEBUCKET_BUCKET_NAME: !Ref ImageBucket
           IMAGEBUCKET_BUCKET_ARN: !GetAtt ImageBucket.Arn
+          DYNAMODB_ENDPOINT: ''
       Events:
+        ApiGETcasesPresignedUrl:
+          Type: Api
+          Properties:
+            Path: /cases/presigned-url
+            Method: GET
+            RestApiId: !Ref Api
         ApiGETcases:
           Type: Api
           Properties:
@@ -244,6 +262,30 @@ Resources:
           Properties:
             Path: /cases/{caseId}/edit
             Method: POST
+            RestApiId: !Ref Api
+        ApiGETcasesHotspots:
+          Type: Api
+          Properties:
+            Path: /cases/hotspots
+            Method: GET
+            RestApiId: !Ref Api
+        ApiGETcasesTrends:
+          Type: Api
+          Properties:
+            Path: /cases/trends
+            Method: GET
+            RestApiId: !Ref Api
+        ApiGETcasesResolution:
+          Type: Api
+          Properties:
+            Path: /cases/resolution
+            Method: GET
+            RestApiId: !Ref Api
+        ApiDELETEcases:
+          Type: Api
+          Properties:
+            Path: /cases
+            Method: DELETE
             RestApiId: !Ref Api
       Policies:
         - Statement:
@@ -295,12 +337,14 @@ Resources:
           TABLE_TABLE_ARN: !GetAtt IncidentTable.Arn
           IMAGEBUCKET_BUCKET_NAME: !Ref ImageBucket
           IMAGEBUCKET_BUCKET_ARN: !GetAtt ImageBucket.Arn
+          LINE_CHANNEL_ACCESS_TOKEN: Z2QLS2+EWWCVKzMIvRwnHLzMpue6rbTiVQ87PSrvKYggU/ca052XPbyN94S7Roks9EMUhOhc6Fz0wJXuv+8L3Re3rajyFntWbFj3KiIDygtT9TkFlwwHOKmf3m0/oQOdy17Gg43gOupEpadp+XxfJwdB04t89/1O/w1cDnyilFU=
+          LIFF_URL: https://liff.line.me/2009444975-WqhF6Iws
       Events:
-        ApiGETcallback:
+        ApiPOSTcallback:
           Type: Api
           Properties:
             Path: /callback
-            Method: GET
+            Method: POST
             RestApiId: !Ref Api
       Policies:
         - Statement:
@@ -352,6 +396,7 @@ Resources:
           TABLE_TABLE_ARN: !GetAtt IncidentTable.Arn
           IMAGEBUCKET_BUCKET_NAME: !Ref ImageBucket
           IMAGEBUCKET_BUCKET_ARN: !GetAtt ImageBucket.Arn
+          DYNAMODB_ENDPOINT: ''
       Events:
         ApiPOSTadmincasescaseIdagenciesagencyId:
           Type: Api
@@ -402,6 +447,16 @@ Resources:
       PublicAccessBlockConfiguration:
         IgnorePublicAcls: true
         RestrictPublicBuckets: true
+      CorsConfiguration:
+        CorsRules:
+          - AllowedOrigins:
+              - '*'
+            AllowedMethods:
+              - PUT
+              - GET
+            AllowedHeaders:
+              - '*'
+            MaxAge: 3000
   ImageBucketBucketPolicy:
     Type: AWS::S3::BucketPolicy
     Properties:
