@@ -1,4 +1,5 @@
 import { handleSendReport, handleListCases } from "./handler.js";
+import { replyLine } from "./line.js";
 
 export const handler = async (event) => {
   console.log(JSON.stringify(event, undefined, 2));
@@ -16,6 +17,8 @@ export const handler = async (event) => {
       await handleSendReport(replyToken);
     } else if (text === "รายการแจ้งเหตุ") {
       await handleListCases(replyToken, userId);
+    } else if (text === "myid") {
+      await replyLine(replyToken, [{ type: "text", text: `Your LINE User ID: ${userId}` }]);
     }
   }
 
