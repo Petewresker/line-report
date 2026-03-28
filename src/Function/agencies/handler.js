@@ -15,6 +15,48 @@ function getAuth(event) {
   };
 }
 
+// ของเก่า: ดูทุกเคสของ agency
+export async function handleGetCasesByAgencyId(event) {
+  const { agencyId } = event.pathParameters || {};
+  const { userId, tokenAgencyId, role } = getAuth(event);
+
+  if (!userId || !agencyId || !role) {
+    return {
+      statusCode: 400,
+      body: JSON.stringify({ message: "Missing authentication data" })
+    };
+  }
+
+  if (role !== "agency") {
+    return {
+      statusCode: 403,
+      body: JSON.stringify({ message: "Unauthorized" })
+    };
+  }
+
+  if (tokenAgencyId !== agencyId) {
+    return {
+      statusCode: 403,
+      body: JSON.stringify({ message: "Agency mismatch" })
+    };
+  }
+
+  try {
+    const items = await getCasesByAgencyId(agencyId);
+
+    return {
+      statusCode: 200,
+      body: JSON.stringify(items)
+    };
+  } catch (error) {
+    return {
+      statusCode: 500,
+      body: JSON.stringify({ message: error.message })
+    };
+  }
+}
+
+// ของใหม่: ดูเคสเดียวตาม caseId
 export async function handleGetCaseById(event) {
   const { agencyId, caseId } = event.pathParameters || {};
   const { userId, tokenAgencyId, role } = getAuth(event);
@@ -53,45 +95,6 @@ export async function handleGetCaseById(event) {
     return {
       statusCode: 200,
       body: JSON.stringify(item)
-    };
-  } catch (error) {
-    return {
-      statusCode: 500,
-      body: JSON.stringify({ message: error.message })
-    };
-  }
-}
-
-export async function handleGetCasesByAgencyId(event) {
-  const { agencyId } = event.pathParameters || {};
-  const { userId, tokenAgencyId, role } = getAuth(event);
-
-  if (!userId || !agencyId || !role) {
-    return {
-      statusCode: 400,
-      body: JSON.stringify({ message: "Missing authentication data" })
-    };
-  }
-
-  if (role !== "agency") {
-    return {
-      statusCode: 403,
-      body: JSON.stringify({ message: "Unauthorized" })
-    };
-  }
-
-  if (tokenAgencyId !== agencyId) {
-    return {
-      statusCode: 403,
-      body: JSON.stringify({ message: "Agency mismatch" })
-    };
-  }
-
-  try {
-    const items = await getCasesByAgencyId(agencyId);
-    return {
-      statusCode: 200,
-      body: JSON.stringify(items)
     };
   } catch (error) {
     return {
