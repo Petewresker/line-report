@@ -58,12 +58,6 @@ Resources:
                 uri: !Sub arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${cases.Arn}/invocations
               responses: {}
           /agencies:
-            options:
-              x-amazon-apigateway-integration:
-                httpMethod: POST
-                type: aws_proxy
-                uri: !Sub arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${agencies.Arn}/invocations
-              responses: {}
             get:
               x-amazon-apigateway-integration:
                 httpMethod: POST
@@ -77,12 +71,6 @@ Resources:
                 uri: !Sub arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${agencies.Arn}/invocations
               responses: {}
           /agencies/presign:
-            options:
-              x-amazon-apigateway-integration:
-                httpMethod: POST
-                type: aws_proxy
-                uri: !Sub arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${agencies.Arn}/invocations
-              responses: {}
             post:
               x-amazon-apigateway-integration:
                 httpMethod: POST
@@ -117,6 +105,20 @@ Resources:
                 type: aws_proxy
                 uri: !Sub arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${agencies.Arn}/invocations
               responses: {}
+          /agencies/{agencyId}/approve:
+            post:
+              x-amazon-apigateway-integration:
+                httpMethod: POST
+                type: aws_proxy
+                uri: !Sub arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${agencies.Arn}/invocations
+              responses: {}
+          /agencies/{agencyId}:
+            delete:
+              x-amazon-apigateway-integration:
+                httpMethod: POST
+                type: aws_proxy
+                uri: !Sub arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${agencies.Arn}/invocations
+              responses: {}
           /admin/cases/{caseId}/agencies/{agencyId}:
             post:
               x-amazon-apigateway-integration:
@@ -145,13 +147,22 @@ Resources:
                 type: aws_proxy
                 uri: !Sub arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${cases.Arn}/invocations
               responses: {}
+          /cases/monthly:
+            get:
+              x-amazon-apigateway-integration:
+                httpMethod: POST
+                type: aws_proxy
+                uri: !Sub arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${cases.Arn}/invocations
+              responses: {}
+          /cases/mockpost:
+            post:
+              x-amazon-apigateway-integration:
+                httpMethod: POST
+                type: aws_proxy
+                uri: !Sub arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${cases.Arn}/invocations
+              responses: {}
       EndpointConfiguration: REGIONAL
       TracingEnabled: true
-      Cors:
-        AllowOrigin: "'*'"
-        AllowHeaders: "'Content-Type,Authorization,userid,agencyid,role,X-Amz-Date,X-Api-Key'"
-        AllowMethods: "'GET,POST,PUT,DELETE,OPTIONS'"
-        MaxAge: 5
 
   IncidentTable:
     Type: AWS::DynamoDB::Table
@@ -269,6 +280,18 @@ Resources:
             Path: /agencies/presign
             Method: POST
             RestApiId: !Ref Api
+        ApiPOSTagenciesAgencyIdApprove:
+          Type: Api
+          Properties:
+            Path: /agencies/{agencyId}/approve
+            Method: POST
+            RestApiId: !Ref Api
+        ApiDELETEagenciesAgencyId:
+          Type: Api
+          Properties:
+            Path: /agencies/{agencyId}
+            Method: DELETE
+            RestApiId: !Ref Api
   agenciesLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
@@ -335,6 +358,18 @@ Resources:
           Properties:
             Path: /cases/resolution
             Method: GET
+            RestApiId: !Ref Api
+        ApiGETcasesMonthly:
+          Type: Api
+          Properties:
+            Path: /cases/monthly
+            Method: GET
+            RestApiId: !Ref Api
+        ApiPOSTcasesMockpost:
+          Type: Api
+          Properties:
+            Path: /cases/mockpost
+            Method: POST
             RestApiId: !Ref Api
         ApiDELETEcases:
           Type: Api
