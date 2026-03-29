@@ -62,7 +62,28 @@ export default function AgencyRegister() {
 
     setSubmitState("loading");
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/agencies/registration`, {
+      // 1. ถ้ามีรูป → ขอ presigned URL แล้วอัปโหลดไป S3
+      let imageKey = null;
+      if (photoFile) {
+        const presignRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/agencies/presign`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ filename: photoFile.name, contentType: photoFile.type }),
+        });
+        if (!presignRes.ok) throw new Error("ขอ presigned URL ไม่สำเร็จ");
+        const { uploadUrl, key } = await presignRes.json();
+
+        const uploadRes = await fetch(uploadUrl, {
+          method: "PUT",
+          body: photoFile,
+          headers: { "Content-Type": photoFile.type },
+        });
+        if (!uploadRes.ok) throw new Error("อัปโหลดรูปไม่สำเร็จ");
+        imageKey = key;
+      }
+
+      // 2. ส่งข้อมูล registration
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/agencies`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -75,6 +96,7 @@ export default function AgencyRegister() {
           agencyName,
           email,
           lineUserID: profile?.userId ?? "",
+          ...(imageKey && { imageKey }),
         }),
       });
 
