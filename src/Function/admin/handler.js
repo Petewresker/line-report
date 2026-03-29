@@ -1,8 +1,15 @@
 import { assignReportService } from "./service.js";
 
+const CORS_HEADERS = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "Content-Type,Authorization",
+  "Access-Control-Allow-Methods": "GET,POST,PUT,DELETE,OPTIONS",
+};
+
 const internalError = () => {
   return {
     statusCode: 500,
+    headers: CORS_HEADERS,
     body: JSON.stringify({ message: "Internal Server Error" })
   };
 };
@@ -17,6 +24,7 @@ export const assignReport = async (event) => {
 
     return {
       statusCode: result.statusCode || 200,
+      headers: CORS_HEADERS,
       body: JSON.stringify(result.data)
     };
 
