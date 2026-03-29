@@ -92,13 +92,16 @@ export default function AgencyWeb() {
         if (!liff.isLoggedIn()) { liff.login(); return; }
 
         const profile = await liff.getProfile();
-        const agencyId = localStorage.getItem("agencyId");
 
-        if (!agencyId) {
+        const meRes = await fetch(`${API}/agencies/me`, {
+          headers: { userid: profile.userId },
+        });
+        if (!meRes.ok) {
           setError("ไม่พบข้อมูลหน่วยงาน กรุณาลงทะเบียนก่อน");
           setLoading(false);
           return;
         }
+        const { agencyId } = await meRes.json();
 
         setAuth({ userId: profile.userId, agencyId });
       } catch (err) {
