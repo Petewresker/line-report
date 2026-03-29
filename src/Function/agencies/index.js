@@ -1,4 +1,4 @@
-import { handleGetCaseById, handleGetCasesByAgencyId, handleRegistration, handleGetPresignUrl, handleGetAllAgencies, handleDeleteAgency, handleApproveAgency } from "./handler.js";
+import { handleGetCaseById, handleGetCasesByAgencyId, handleRegistration, handleGetPresignUrl, handleGetAllAgencies, handleDeleteAgency, handleApproveAgency ,acceptCase} from "./handler.js";
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -41,8 +41,15 @@ export const handler = async (event) => {
     return await handleApproveAgency(event);
   }
 
+  if (httpMethod === 'POST' && resource === '/agencies/cases/{caseId}/accept'){
+    const { caseId } = pathParameters || {}
+
+    return acceptCase({...event, caseId})
+  }
+
   return {
     statusCode: 404,
     body: JSON.stringify({ message: "Route not found" })
   };
 };
+
