@@ -78,11 +78,12 @@ export const gethotspot = async () =>{
   try {
       const result = await HostspotService();
       return { statusCode: 201, headers: CORS_HEADERS, body: JSON.stringify(result) }
-  }  catch (error) {
-      console.error('postCaseByUser error:', error)
+  } catch (error) {
+      console.error('gethotspot error:', error)
       return {
         statusCode: 500,
-        body: JSON.stringify({ error: 'Failed to post case', message: error.message }),
+        headers: CORS_HEADERS,
+        body: JSON.stringify({ error: 'Failed to get hotspot', message: error.message }),
     }
 }
 }

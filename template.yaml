@@ -70,6 +70,13 @@ Resources:
                 type: aws_proxy
                 uri: !Sub arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${agencies.Arn}/invocations
               responses: {}
+          /agencies/me:
+            get:
+              x-amazon-apigateway-integration:
+                httpMethod: POST
+                type: aws_proxy
+                uri: !Sub arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${agencies.Arn}/invocations
+              responses: {}
           /agencies/presign:
             post:
               x-amazon-apigateway-integration:
@@ -260,6 +267,12 @@ Resources:
           Type: Api
           Properties:
             Path: /agencies/{agencyId}/cases
+            Method: GET
+            RestApiId: !Ref Api
+        ApiGETagenciesMe:
+          Type: Api
+          Properties:
+            Path: /agencies/me
             Method: GET
             RestApiId: !Ref Api
         ApiGETagencies:

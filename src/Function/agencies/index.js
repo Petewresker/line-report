@@ -7,7 +7,8 @@ import {
   handleDeleteAgency,
   handleApproveAgency,
   acceptCase,
-  completeCaseHandler
+  completeCaseHandler,
+  handleGetMyAgency
 } from "./handler.js";
 
 const CORS_HEADERS = {
@@ -33,6 +34,10 @@ export const handler = async (event) => {
 
   if (httpMethod === "POST" && resource === "/agencies/presign") {
     return await handleGetPresignUrl(event);
+  }
+
+  if (httpMethod === "GET" && resource === "/agencies/me") {
+    return await handleGetMyAgency(event);
   }
 
   if (httpMethod === "GET" && resource === "/agencies") {
