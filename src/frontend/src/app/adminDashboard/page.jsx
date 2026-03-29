@@ -132,6 +132,27 @@ export default function AdminDashboard() {
     }
   }
 
+  const filtered = useMemo(() => cases.filter((c) => {
+    const statusFilter = FILTER_TO_STATUS[activeFilter]
+    const matchStatus = !statusFilter || c.status === statusFilter
+    const matchSearch = c.title?.includes(searchQuery) || c.caseId?.includes(searchQuery)
+    return matchStatus && matchSearch
+  }), [cases, activeFilter, searchQuery])
+
+  const groups = useMemo(() => {
+    const assigned = new Set()
+    const result = []
+    for (const item of filtered) {
+      if (assigned.has(item.caseId)) continue
+      const group = filtered.filter(c =>
+        c.title === item.title && haversine(item.lat, item.lon, c.lat, c.lon) <= RADIUS_M
+      )
+      group.forEach(c => assigned.add(c.caseId))
+      result.push(group)
+    }
+    return result
+  }, [filtered])
+
   if (liffError) {
     return (
       <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f5f5f5' }}>
@@ -157,27 +178,6 @@ export default function AdminDashboard() {
     { label: 'In progress', value: cases.filter(c => c.status === 'IN_PROGRESS').length,   labelColor: '#3B82F6' },
     { label: 'Success',     value: cases.filter(c => c.status === 'FINISHED').length,      labelColor: '#10B981' },
   ]
-
-  const filtered = useMemo(() => cases.filter((c) => {
-    const statusFilter = FILTER_TO_STATUS[activeFilter]
-    const matchStatus = !statusFilter || c.status === statusFilter
-    const matchSearch = c.title?.includes(searchQuery) || c.caseId?.includes(searchQuery)
-    return matchStatus && matchSearch
-  }), [cases, activeFilter, searchQuery])
-
-  const groups = useMemo(() => {
-    const assigned = new Set()
-    const result = []
-    for (const item of filtered) {
-      if (assigned.has(item.caseId)) continue
-      const group = filtered.filter(c =>
-        c.title === item.title && haversine(item.lat, item.lon, c.lat, c.lon) <= RADIUS_M
-      )
-      group.forEach(c => assigned.add(c.caseId))
-      result.push(group)
-    }
-    return result
-  }, [filtered])
 
   return (
     <div style={{ minHeight: '100vh', background: '#f5f5f5', display: 'flex', flexDirection: 'column' }}>
