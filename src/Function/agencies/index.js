@@ -18,55 +18,65 @@ const CORS_HEADERS = {
 };
 
 export const handler = async (event) => {
-  const { httpMethod, resource } = event;
+  try {
+    const { httpMethod, path } = event;
 
-  if (httpMethod === "OPTIONS") {
-    return { statusCode: 200, headers: CORS_HEADERS, body: "" };
+    if (httpMethod === "OPTIONS") {
+      return { statusCode: 200, headers: CORS_HEADERS, body: "" };
+    }
+
+    if (httpMethod === "GET" && path === "/agencies/me") {
+      return await handleGetMyAgency(event);
+    }
+
+    if (httpMethod === "GET" && path === "/agencies") {
+      return await handleGetAllAgencies();
+    }
+
+    if (httpMethod === "POST" && path === "/agencies") {
+      return await handleRegistration(event);
+    }
+
+    if (httpMethod === "POST" && path === "/agencies/presign") {
+      return await handleGetPresignUrl(event);
+    }
+
+    if (httpMethod === "POST" && path.match(/^\/agencies\/cases\/[^/]+\/accept$/)) {
+      return await acceptCase(event);
+    }
+
+    if (httpMethod === "POST" && path.match(/^\/agencies\/cases\/[^/]+\/complete$/)) {
+      return await completeCaseHandler(event);
+    }
+
+    if (httpMethod === "GET" && path.match(/^\/agencies\/[^/]+\/cases\/[^/]+$/)) {
+      return await handleGetCaseById(event);
+    }
+
+    //จริงๆแล้วต้องเป็น admin แต่ช่างมันก่อน ***ติดไว้
+    if (httpMethod === "GET" && path.match(/^\/agencies\/[^/]+\/cases$/)) {
+      return await handleGetCasesByAgencyId(event);
+    }
+
+    if (httpMethod === "POST" && path.match(/^\/agencies\/[^/]+\/approve$/)) {
+      return await handleApproveAgency(event);
+    }
+
+    if (httpMethod === "DELETE" && path.match(/^\/agencies\/[^/]+$/)) {
+      return await handleDeleteAgency(event);
+    }
+
+    return {
+      statusCode: 404,
+      headers: CORS_HEADERS,
+      body: JSON.stringify({ message: "Route not found" })
+    };
+  } catch (error) {
+    console.error("Unhandled error:", error);
+    return {
+      statusCode: 500,
+      headers: CORS_HEADERS,
+      body: JSON.stringify({ message: "Internal server error", error: error.message })
+    };
   }
-
-  if (httpMethod === "GET" && resource === "/agencies/{agencyId}/cases") {
-    return await handleGetCasesByAgencyId(event);
-  }
-
-  if (httpMethod === "GET" && resource === "/agencies/{agencyId}/cases/{caseId}") {
-    return await handleGetCaseById(event);
-  }
-
-  if (httpMethod === "POST" && resource === "/agencies/presign") {
-    return await handleGetPresignUrl(event);
-  }
-
-  if (httpMethod === "GET" && resource === "/agencies/me") {
-    return await handleGetMyAgency(event);
-  }
-
-  if (httpMethod === "GET" && resource === "/agencies") {
-    return await handleGetAllAgencies();
-  }
-
-  if (httpMethod === "POST" && resource === "/agencies") {
-    return await handleRegistration(event);
-  }
-
-  if (httpMethod === "DELETE" && resource === "/agencies/{agencyId}") {
-    return await handleDeleteAgency(event);
-  }
-
-  if (httpMethod === "POST" && resource === "/agencies/{agencyId}/approve") {
-    return await handleApproveAgency(event);
-  }
-
-  if (httpMethod === "POST" && resource === "/agencies/cases/{caseId}/accept") {
-    return await acceptCase(event);
-  }
-
-  if (httpMethod === "POST" && resource === "/agencies/cases/{caseId}/complete") {
-    return await completeCaseHandler(event);
-  }
-
-  return {
-    statusCode: 404,
-    headers: CORS_HEADERS,
-    body: JSON.stringify({ message: "Route not found" })
-  };
 };
