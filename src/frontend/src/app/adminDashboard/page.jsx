@@ -55,6 +55,11 @@ export default function AdminDashboard() {
   const [searchQuery, setSearchQuery] = useState('')
   const [cases, setCases] = useState([])
   const [selected, setSelected] = useState(null)
+  const [showModal, setShowModal] = useState(false)
+  const [agencies, setAgencies] = useState([])
+  const [selectedAgency, setSelectedAgency] = useState(null)
+  const [loadingAgencies, setLoadingAgencies] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
 
   useEffect(() => {
     fetch(`${process.env.NEXT_PUBLIC_API_URL}/cases?admin=true`)
@@ -66,6 +71,43 @@ export default function AdminDashboard() {
       })
       .catch(console.error)
   }, [])
+
+  // หา caseIds ทั้งหมดที่เป็น duplicate ของ case ที่เลือก (title เดียวกัน + อยู่ใน radius)
+  const getRelatedCaseIds = (item) =>
+    cases
+      .filter(c => c.title === item.title && haversine(item.lat, item.lon, c.lat, c.lon) <= RADIUS_M)
+      .map(c => c.caseId)
+
+  const openModal = () => {
+    setSelectedAgency(null)
+    setShowModal(true)
+    setLoadingAgencies(true)
+    fetch(`${process.env.NEXT_PUBLIC_API_URL}/agencies`)
+      .then(r => r.json())
+      .then(data => setAgencies(Array.isArray(data.agencies) ? data.agencies.filter(a => a.Status === 'ACTIVE') : []))
+      .catch(console.error)
+      .finally(() => setLoadingAgencies(false))
+  }
+
+  const handleSubmit = async () => {
+    if (!selectedAgency || !selected) return
+    setSubmitting(true)
+    try {
+      const caseIds = getRelatedCaseIds(selected)
+      await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/cases/${selected.caseId}/agencies/${selectedAgency.AgencyID}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ caseIds }),
+      })
+      setCases(prev => prev.map(c => caseIds.includes(c.caseId) ? { ...c, status: 'FORWARD' } : c))
+      setSelected(prev => prev ? { ...prev, status: 'FORWARD' } : prev)
+      setShowModal(false)
+    } catch (err) {
+      console.error(err)
+    } finally {
+      setSubmitting(false)
+    }
+  }
 
   const stats = [
     { label: 'Total',       value: cases.length,                                           labelColor: '#111' },
@@ -283,7 +325,7 @@ export default function AdminDashboard() {
                   </div>
 
                   {/* Action */}
-                  <button style={{
+                  <button onClick={openModal} style={{
                     width: '100%', padding: '0.75rem', borderRadius: '10px', border: 'none',
                     background: '#10B981', color: '#fff', fontSize: '0.95rem', fontWeight: '600',
                     cursor: 'pointer', transition: 'background 0.2s',
@@ -291,7 +333,7 @@ export default function AdminDashboard() {
                     onMouseEnter={(e) => e.currentTarget.style.background = '#059669'}
                     onMouseLeave={(e) => e.currentTarget.style.background = '#10B981'}
                   >
-                    ส่งข้อมูล
+                    ส่งข้อมูล ({selected ? getRelatedCaseIds(selected).length : 0} เคส)
                   </button>
                 </>
               ) : (
@@ -304,6 +346,78 @@ export default function AdminDashboard() {
           </div>
         </main>
       </div>
+
+      {showModal && (
+        <div style={{
+          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000,
+        }} onClick={(e) => { if (e.target === e.currentTarget) setShowModal(false) }}>
+          <div style={{
+            background: '#fff', borderRadius: '16px', padding: '1.75rem',
+            width: '480px', maxWidth: '90vw', boxShadow: '0 8px 32px rgba(0,0,0,0.18)',
+          }}>
+            <h2 style={{ fontSize: '1.1rem', fontWeight: '700', color: '#111', marginBottom: '0.25rem' }}>เลือกหน่วยงาน</h2>
+            <p style={{ fontSize: '0.8rem', color: '#999', marginBottom: '1.25rem' }}>
+              ส่ง <b style={{ color: '#111' }}>{selected ? getRelatedCaseIds(selected).length : 0} เคส</b> ที่เกี่ยวข้องกับ "{selected?.title}"
+            </p>
+
+            {loadingAgencies ? (
+              <div style={{ textAlign: 'center', padding: '2rem', color: '#aaa', fontSize: '0.875rem' }}>กำลังโหลด...</div>
+            ) : agencies.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '2rem', color: '#aaa', fontSize: '0.875rem' }}>ไม่มีหน่วยงานที่พร้อมรับงาน</div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', maxHeight: '320px', overflowY: 'auto', marginBottom: '1.25rem' }}>
+                {agencies.map((agency) => {
+                  const isChosen = selectedAgency?.AgencyID === agency.AgencyID
+                  return (
+                    <div key={agency.AgencyID} onClick={() => setSelectedAgency(agency)} style={{
+                      display: 'flex', alignItems: 'center', gap: '0.85rem',
+                      padding: '0.75rem 1rem', borderRadius: '10px', cursor: 'pointer',
+                      border: `2px solid ${isChosen ? '#3B82F6' : '#e5e5e5'}`,
+                      background: isChosen ? '#EFF6FF' : '#fff', transition: 'all 0.15s',
+                    }}>
+                      <div style={{ width: '40px', height: '40px', borderRadius: '50%', flexShrink: 0, background: '#f0f0f0', overflow: 'hidden' }}>
+                        {agency.ImageUrl
+                          ? <img src={agency.ImageUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={(e) => { e.target.style.display = 'none' }} />
+                          : <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#aaa' }}>🏢</div>
+                        }
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <p style={{ fontSize: '0.875rem', fontWeight: '600', color: '#111', marginBottom: '0.1rem' }}>{agency.AgencyName}</p>
+                        <p style={{ fontSize: '0.75rem', color: '#999' }}>{agency.Name} {agency.Surname}</p>
+                      </div>
+                      <div style={{
+                        width: '18px', height: '18px', borderRadius: '50%', flexShrink: 0,
+                        border: `2px solid ${isChosen ? '#3B82F6' : '#d1d5db'}`,
+                        background: isChosen ? '#3B82F6' : '#fff',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      }}>
+                        {isChosen && <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#fff' }} />}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+
+            <div style={{ display: 'flex', gap: '0.75rem' }}>
+              <button onClick={() => setShowModal(false)} style={{
+                flex: 1, padding: '0.65rem', borderRadius: '10px',
+                border: '1px solid #e5e5e5', background: '#fff',
+                fontSize: '0.9rem', fontWeight: '500', cursor: 'pointer', color: '#555',
+              }}>ยกเลิก</button>
+              <button onClick={handleSubmit} disabled={!selectedAgency || submitting} style={{
+                flex: 1, padding: '0.65rem', borderRadius: '10px', border: 'none',
+                background: selectedAgency && !submitting ? '#10B981' : '#d1d5db',
+                color: '#fff', fontSize: '0.9rem', fontWeight: '600',
+                cursor: selectedAgency && !submitting ? 'pointer' : 'not-allowed',
+              }}>
+                {submitting ? 'กำลังส่ง...' : 'ยืนยัน'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

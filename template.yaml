@@ -486,7 +486,11 @@ Resources:
           TABLE_TABLE_ARN: !GetAtt IncidentTable.Arn
           IMAGEBUCKET_BUCKET_NAME: !Ref ImageBucket
           IMAGEBUCKET_BUCKET_ARN: !GetAtt ImageBucket.Arn
+<<<<<<< HEAD
           DYNAMODB_ENDPOINT: ''
+=======
+          LINE_CHANNEL_ACCESS_TOKEN: Z2QLS2+EWWCVKzMIvRwnHLzMpue6rbTiVQ87PSrvKYggU/ca052XPbyN94S7Roks9EMUhOhc6Fz0wJXuv+8L3Re3rajyFntWbFj3KiIDygtT9TkFlwwHOKmf3m0/oQOdy17Gg43gOupEpadp+XxfJwdB04t89/1O/w1cDnyilFU=
+>>>>>>> 1bcd40ded778b8c699d5c9ad651247bb43ae8826
       Events:
         ApiPOSTadmincasescaseIdagenciesagencyId:
           Type: Api
