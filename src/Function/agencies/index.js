@@ -1,4 +1,4 @@
-import { handleGetCaseById, handleGetCasesByAgencyId, handleRegistration, handleGetPresignUrl, handleGetAllAgencies } from "./handler.js";
+import { handleGetCaseById, handleGetCasesByAgencyId, handleRegistration, handleGetPresignUrl, handleGetAllAgencies, handleDeleteAgency, handleApproveAgency } from "./handler.js";
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -31,6 +31,14 @@ export const handler = async (event) => {
 
   if (httpMethod === 'POST' && resource ==="/agencies"){
     return await handleRegistration(event);
+  }
+
+  if (httpMethod === "DELETE" && resource === "/agencies/{agencyId}") {
+    return await handleDeleteAgency(event);
+  }
+
+  if (httpMethod === "POST" && resource === "/agencies/{agencyId}/approve") {
+    return await handleApproveAgency(event);
   }
 
   return {

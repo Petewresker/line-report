@@ -5,7 +5,7 @@ import { DynamoDBDocumentClient, ScanCommand, PutCommand, DeleteCommand } from '
 import crypto from 'node:crypto'
 import { S3Client, PutObjectCommand ,GetObjectCommand } from '@aws-sdk/client-s3'
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
-import { it } from 'node:test'
+import { mockData } from './mockData.js'
 
 // For DyamoDB Local testing
 const clientConfig = {}
@@ -30,6 +30,7 @@ const s3Client = new S3Client({
 //Convert img to url for frontend
 async function getImageUrl(key){
   if(!key) return null;
+  if(key.startsWith('http')) return key;
 
   const command = new GetObjectCommand({
     Bucket: process.env.IMAGEBUCKET_BUCKET_NAME,
@@ -38,12 +39,41 @@ async function getImageUrl(key){
   return await getSignedUrl(s3Client,command,{expiresIn:3600});
 }
 
+export const getAllCasesAdminService = async () => {
+  const result = await client.send(new ScanCommand({
+    TableName: process.env.TABLE_TABLE_NAME,
+    FilterExpression: 'begins_with(PK, :prefix)',
+    ExpressionAttributeValues: { ':prefix': 'CASE#' },
+    ProjectionExpression: 'caseId, title, description, #st, imageUrlBefore, createdAt, lat, lon, userId',
+    ExpressionAttributeNames: { '#st': 'status' },
+  }))
+
+  const items = await Promise.all(
+    result.Items.map(async (item) => ({
+      ...item,
+      imageUrl: await getImageUrl(item.imageUrlBefore),
+    }))
+  )
+
+  return items.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+}
+
+const GROUP_RADIUS_M = 500
+
+function haversine(lat1, lon1, lat2, lon2) {
+  const R = 6371000
+  const dLat = (lat2 - lat1) * Math.PI / 180
+  const dLon = (lon2 - lon1) * Math.PI / 180
+  const a = Math.sin(dLat / 2) ** 2
+    + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon / 2) ** 2
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+}
+
 export const getAllCasesService = async () => {
   const result = await client.send(new ScanCommand({
     TableName: process.env.TABLE_TABLE_NAME,
   }))
 
-  //Show PresignUrl instead of keys
   const casesWithUrls = await Promise.all(
     result.Items.map(async (item) => ({
       ...item,
@@ -51,33 +81,32 @@ export const getAllCasesService = async () => {
     }))
   )
 
-  const grouped = casesWithUrls.reduce((acc, item) => {
-    const groupKey = `${item.geohash}__${item.title}`
+  const grouped = {}
 
-    if (!acc[groupKey]) {
-      acc[groupKey] = {
+  for (const item of casesWithUrls) {
+    const existingKey = Object.keys(grouped).find((k) => {
+      const g = grouped[k]
+      return g.title === item.title
+        && haversine(g.lat, g.lon, item.lat, item.lon) <= GROUP_RADIUS_M
+    })
+
+    if (existingKey) {
+      grouped[existingKey].count += 1
+      if (grouped[existingKey].images.length < 3 && item.imageUrl) {
+        grouped[existingKey].images.push(item.imageUrl)
+      }
+      grouped[existingKey].cases.push(item.caseId)
+    } else {
+      grouped[`${item.title}__${item.caseId}`] = {
         title: item.title,
-        geohash: item.geohash,
         lat: item.lat,
         lon: item.lon,
-        count: 0,
-        images: [],
-        cases: [],
+        count: 1,
+        images: item.imageUrl ? [item.imageUrl] : [],
+        cases: [item.caseId],
       }
     }
-
-     acc[groupKey].count += 1
-
-    // เก็บรูปไม่เกิน 3 รูป
-    if (acc[groupKey].images.length < 3 && item.imageUrl) {
-      acc[groupKey].images.push(item.imageUrl)
-    }
-
-    //เพิ่มรูปเรื่อยๆถ้ามันเคสเดียวกัน
-    acc[groupKey].cases.push(item.caseId)
-
-    return acc
- }, {})
+  }
 
   return Object.values(grouped)
 }
@@ -139,49 +168,30 @@ export const getCasesByUserService = async (userId) => {
 
 
 
-//Loop MockData Test เราแนะนําให้ใช้ docClient แทน Client
-export const postCaseService = async (body) => {
-  const results = [];
+//Loop MockData Test
+export const postCaseService = async () => {
+  const results = []
 
   for (const mock of mockData) {
-    const reportId = randomUUID();
-
     try {
-      await docClient.send(new PutCommand({
-        TableName: process.env.TABLE_TABLE_NAME,
-        Item: {
-          PK: `REPORT#${reportId}`,
-          SK: `METADATA#${reportId}`,
-          ReporterID: mock.userId,
-          Title: mock.Topic,
-          Description: mock.description,
-          Status: "PENDING",
-          PhotoURL_Before: mock.imageUrlBefore,
-          PhotoURL_After: null,
-          Lat: mock.location.lat,
-          Lng: mock.location.long,
-          AI_Suggested_Category: "",
-          AI_Confidence: 0,
-          AssignedAgencyID: "",
-          CreatedAt: new Date().toISOString(),
-          AcceptedAt: null,
-          ResolvedAt: null,
-          Summary: "",
-        },
-      }));
-      results.push({ reportId, topic: mock.Topic, status: "success" });
+      const item = await createCaseService({
+        title: mock.title,
+        description: mock.description,
+        userId: mock.userId,
+        lat: mock.lat,
+        lon: mock.lon,
+        imageUrlBefore: mock.imageUrlBefore,
+      })
+      results.push({ caseId: item.caseId, title: mock.title, status: 'success' })
     } catch (error) {
-      results.push({ reportId, topic: mock.Topic, status: "failed", error: error.message });
+      results.push({ title: mock.title, status: 'failed', error: error.message })
     }
   }
 
   return {
-    statusCode: 200,
-    body: JSON.stringify({
-      message: `Seeded ${results.filter(r => r.status === "success").length}/${mockData.length} cases`,
-      results,
-    }),
-  };
+    message: `Seeded ${results.filter((r) => r.status === 'success').length}/${mockData.length} cases`,
+    results,
+  }
 }
 
 export const createCaseService = async (caseInformation) => {
@@ -212,6 +222,25 @@ export const createCaseService = async (caseInformation) => {
 }
 
 
+export const monthlyReportService = async () => {
+  const result = await client.send(new ScanCommand({
+    TableName: process.env.TABLE_TABLE_NAME,
+    FilterExpression: 'begins_with(PK, :prefix)',
+    ExpressionAttributeValues: { ':prefix': 'CASE#' },
+    ProjectionExpression: 'createdAt',
+  }))
+
+  const monthly = result.Items.reduce((acc, item) => {
+    if (!item.createdAt) return acc
+    const yearMonth = item.createdAt.substring(0, 7)
+    if (!acc[yearMonth]) acc[yearMonth] = { month: yearMonth, count: 0 }
+    acc[yearMonth].count += 1
+    return acc
+  }, {})
+
+  return Object.values(monthly).sort((a, b) => a.month.localeCompare(b.month))
+}
+
 /*
  3 API for analysis
  - Hostspot google map required
@@ -224,27 +253,24 @@ export const HostspotService = async () =>{
 
   const result = await client.send(new ScanCommand({
     TableName: process.env.TABLE_TABLE_NAME,
+    FilterExpression: 'begins_with(PK, :prefix)',
+    ExpressionAttributeValues: { ':prefix': 'CASE#' },
   }));
 
-  //reduced stradegy
-  //group by using Geohasing!
-  const grouped = result.Items.reduce((acc,item)=>{
-    const group = item.geohash;
+  const HOTSPOT_RADIUS_M = 300
+  const groups = []
 
-    if(!acc[group]){
-      acc[group] = {
-        lat:item.lat,
-        lon:item.lon,
-        count:0
-      }
+  for (const item of result.Items) {
+    if (!item.lat || !item.lon) continue
+    const existing = groups.find(g => haversine(g.lat, g.lon, item.lat, item.lon) <= HOTSPOT_RADIUS_M)
+    if (existing) {
+      existing.count += 1
+    } else {
+      groups.push({ lat: item.lat, lon: item.lon, count: 1 })
     }
+  }
 
-    acc[group].count += 1;
-
-    return acc;
-  }, {})
-  // sort(a,b) เทียบกับเอาตัวมากขึ้นก่อน
-  return Object.values(grouped).sort((a,b)=>b.count - a.count);
+  return groups.sort((a, b) => b.count - a.count)
 }
 
 

@@ -1,94 +1,83 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Search, Calendar, Clock, MapPin, ExternalLink, AlertCircle, AlertTriangle, Eye } from 'lucide-react'
 import Navbar from '../components/Navbar'
 import Sidebar from '../components/Sidebar'
 
 const filterTabs = ['ทั้งหมด', 'รอดำเนินการ', 'กำลังดำเนินการ', 'เสร็จสิ้น']
 
-const mockCases = [
-  {
-    caseId: 'AG-0001',
-    title: 'โน้ตบุ๊คบริเวณตึกโดมบริหารไฟไหม้',
-    description: 'ทำงานอยู่บริเวณbs.2 เห็นโน้ตบุ๊คของตึกโดมบริหารเท้าๆ ไฟไหม้นะคะ ที่มหาวิทยาลัยธรรมศาสตร์',
-    status: 'รอดำเนินการ',
-    createdAt: '20/02/2569',
-    time: '16:20',
-    location: 'มหาวิทยาลัยธรรมศาสตร์ รังสิต 760001',
-    lat: 14.0707,
-    lng: 100.6056,
-    images: ['/fire1.jpg', '/fire2.jpg', '/fire3.jpg'],
-    reportCount: 12,
-  },
-  {
-    caseId: 'AG-0002',
-    title: 'โน้ตบุ๊คบริเวณตึกโดมบริหารไฟไหม้',
-    description: 'ทำงานอยู่บริเวณbs.2 เห็นโน้ตบุ๊คของตึกโดมบริหารเท้าๆ ไฟไหม้นะคะ ที่มหาวิทยาลัยธรรมศาสตร์',
-    status: 'กำลังดำเนินการ',
-    createdAt: '20/02/2569',
-    time: '16:20',
-    location: 'มหาวิทยาลัยธรรมศาสตร์ รังสิต 760001',
-    lat: 14.0707,
-    lng: 100.6056,
-    images: ['/fire1.jpg'],
-    reportCount: 5,
-  },
-  {
-    caseId: 'AG-0003',
-    title: 'โน้ตบุ๊คบริเวณตึกโดมบริหารไฟไหม้',
-    description: 'ทำงานอยู่บริเวณbs.2 เห็นโน้ตบุ๊คของตึกโดมบริหารเท้าๆ ไฟไหม้นะคะ ที่มหาวิทยาลัยธรรมศาสตร์',
-    status: 'เสร็จสิ้น',
-    createdAt: '20/02/2569',
-    time: '16:20',
-    location: 'มหาวิทยาลัยธรรมศาสตร์ รังสิต 760001',
-    lat: 14.0707,
-    lng: 100.6056,
-    images: ['/fire1.jpg', '/fire2.jpg'],
-    reportCount: 3,
-  },
-  {
-    caseId: 'AG-0004',
-    title: 'โน้ตบุ๊คบริเวณตึกโดมบริหารไฟไหม้',
-    description: 'ทำงานอยู่บริเวณbs.2 เห็นโน้ตบุ๊คของตึกโดมบริหารเท้าๆ ไฟไหม้นะคะ ที่มหาวิทยาลัยธรรมศาสตร์',
-    status: 'รอดำเนินการ',
-    createdAt: '20/02/2569',
-    time: '16:20',
-    location: 'มหาวิทยาลัยธรรมศาสตร์ รังสิต 760001',
-    lat: 14.0707,
-    lng: 100.6056,
-    images: ['/fire1.jpg'],
-    reportCount: 2,
-  },
-]
-
-const getReportIndicator = (count) => {
-  if (count > 10) return { Icon: AlertCircle, color: '#EF4444', bg: '#FEE2E2', label: count }
-  if (count >= 5)  return { Icon: AlertTriangle, color: '#F59E0B', bg: '#FEF3C7', label: count }
-  return            { Icon: Eye, color: '#3B82F6', bg: '#DBEAFE', label: count }
+const FILTER_TO_STATUS = {
+  'รอดำเนินการ': 'PENDING',
+  'กำลังดำเนินการ': 'IN_PROGRESS',
+  'เสร็จสิ้น': 'FINISHED',
 }
 
-const stats = [
-  { label: 'Total', value: mockCases.length, labelColor: '#111' },
-  { label: 'Forwarded', value: mockCases.filter(c => c.status === 'รอดำเนินการ').length, labelColor: '#F59E0B' },
-  { label: 'In progress', value: mockCases.filter(c => c.status === 'กำลังดำเนินการ').length, labelColor: '#3B82F6' },
-  { label: 'Success', value: mockCases.filter(c => c.status === 'เสร็จสิ้น').length, labelColor: '#10B981' },
-]
+const RADIUS_M = 500
 
-const statusStyle = {
-  'รอดำเนินการ': { bg: '#FEF3C7', text: '#92400E', label: 'รอ' },
-  'กำลังดำเนินการ': { bg: '#DBEAFE', text: '#1E40AF', label: 'กำลัง' },
-  'เสร็จสิ้น': { bg: '#D1FAE5', text: '#065F46', label: 'เสร็จ' },
+function haversine(lat1, lon1, lat2, lon2) {
+  const R = 6371000
+  const dLat = (lat2 - lat1) * Math.PI / 180
+  const dLon = (lon2 - lon1) * Math.PI / 180
+  const a = Math.sin(dLat / 2) ** 2
+    + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon / 2) ** 2
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+}
+
+const formatDate = (iso) => {
+  if (!iso) return '-'
+  const d = new Date(iso)
+  return `${d.getDate().toString().padStart(2, '0')}/${(d.getMonth() + 1).toString().padStart(2, '0')}/${d.getFullYear()}`
+}
+
+const formatTime = (iso) => {
+  if (!iso) return '-'
+  const d = new Date(iso)
+  return `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`
+}
+
+
+const getReportIndicator = (count) => {
+  if (count > 10) return { Icon: AlertCircle,  color: '#EF4444', bg: '#FEE2E2', label: count }
+  if (count >= 5)  return { Icon: AlertTriangle, color: '#F59E0B', bg: '#FEF3C7', label: count }
+  return            { Icon: Eye,           color: '#3B82F6', bg: '#DBEAFE', label: count }
+}
+
+const STATUS_MAP = {
+  PENDING:     { bg: '#FEF3C7', text: '#92400E', label: 'รอดำเนินการ' },
+  FORWARD:     { bg: '#EDE9FE', text: '#6D28D9', label: 'กำลังส่งมอบ' },
+  IN_PROGRESS: { bg: '#DBEAFE', text: '#1E40AF', label: 'กำลังดำเนินการ' },
+  FINISHED:    { bg: '#D1FAE5', text: '#065F46', label: 'เสร็จสิ้น' },
 }
 
 export default function AdminDashboard() {
   const [activeFilter, setActiveFilter] = useState('ทั้งหมด')
   const [searchQuery, setSearchQuery] = useState('')
-  const [selected, setSelected] = useState(mockCases[0])
+  const [cases, setCases] = useState([])
+  const [selected, setSelected] = useState(null)
 
-  const filtered = mockCases.filter((c) => {
-    const matchStatus = activeFilter === 'ทั้งหมด' || c.status === activeFilter
-    const matchSearch = c.title.includes(searchQuery) || c.caseId.includes(searchQuery)
+  useEffect(() => {
+    fetch(`${process.env.NEXT_PUBLIC_API_URL}/cases?admin=true`)
+      .then((r) => r.json())
+      .then((data) => {
+        const items = Array.isArray(data) ? data : []
+        setCases(items)
+        if (items.length > 0) setSelected(items[0])
+      })
+      .catch(console.error)
+  }, [])
+
+  const stats = [
+    { label: 'Total',       value: cases.length,                                           labelColor: '#111' },
+    { label: 'Pending',     value: cases.filter(c => c.status === 'PENDING').length,       labelColor: '#F59E0B' },
+    { label: 'In progress', value: cases.filter(c => c.status === 'IN_PROGRESS').length,   labelColor: '#3B82F6' },
+    { label: 'Success',     value: cases.filter(c => c.status === 'FINISHED').length,      labelColor: '#10B981' },
+  ]
+
+  const filtered = cases.filter((c) => {
+    const statusFilter = FILTER_TO_STATUS[activeFilter]
+    const matchStatus = !statusFilter || c.status === statusFilter
+    const matchSearch = c.title?.includes(searchQuery) || c.caseId?.includes(searchQuery)
     return matchStatus && matchSearch
   })
 
@@ -145,16 +134,23 @@ export default function AdminDashboard() {
             </div>
           </div>
 
+          <style>{`
+            .left-scroll::-webkit-scrollbar { width: 6px; }
+            .left-scroll::-webkit-scrollbar-track { background: #f5f5f5; border-radius: 8px; }
+            .left-scroll::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 8px; }
+            .left-scroll::-webkit-scrollbar-thumb:hover { background: #9ca3af; }
+          `}</style>
+
           {/* Two-panel */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', flex: 1, minHeight: 0 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', flex: 1, minHeight: 0, alignItems: 'start' }}>
 
             {/* Left — List */}
-            <div style={{
+            <div className="left-scroll" style={{
               background: '#fff', borderRadius: '12px', boxShadow: '0 1px 3px rgba(0,0,0,0.07)',
-              overflow: 'auto', display: 'flex', flexDirection: 'column',
+              overflowY: 'auto', display: 'flex', flexDirection: 'column', maxHeight: '72vh',
             }}>
               {filtered.map((item) => {
-                const s = statusStyle[item.status]
+                const s = STATUS_MAP[item.status] ?? { bg: '#f0f0f0', text: '#555', label: item.status }
                 const isSelected = selected?.caseId === item.caseId
                 return (
                   <div key={item.caseId} onClick={() => setSelected(item)}
@@ -172,7 +168,7 @@ export default function AdminDashboard() {
                       width: '90px', height: '65px', borderRadius: '8px', flexShrink: 0,
                       background: '#f0f0f0', overflow: 'hidden',
                     }}>
-                      <img src={item.images[0]} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                      <img src={item.imageUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                         onError={(e) => { e.target.style.display = 'none' }} />
                     </div>
 
@@ -186,7 +182,7 @@ export default function AdminDashboard() {
                           <p style={{ fontSize: '0.75rem', color: '#999' }}>{item.caseId}</p>
                         </div>
                         <span style={{ fontSize: '0.7rem', padding: '0.2rem 0.55rem', borderRadius: '20px', background: s.bg, color: s.text, whiteSpace: 'nowrap', marginLeft: '0.5rem', flexShrink: 0 }}>
-                          {item.status}
+                          {s.label}
                         </span>
                       </div>
                       <p style={{ fontSize: '0.78rem', color: '#777', lineHeight: '1.4', overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', marginBottom: '0.4rem' }}>
@@ -194,13 +190,17 @@ export default function AdminDashboard() {
                       </p>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', fontSize: '0.72rem', color: '#aaa' }}>
                         <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                          <Calendar size={11} /> {item.createdAt}
+                          <Calendar size={11} /> {formatDate(item.createdAt)}
                         </span>
                         <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                          <Clock size={11} /> {item.time}
+                          <Clock size={11} /> {formatTime(item.createdAt)}
                         </span>
                         {(() => {
-                          const { Icon, color, bg, label } = getReportIndicator(item.reportCount ?? 0)
+                          const count = cases.filter(c =>
+                            c.title === item.title &&
+                            haversine(item.lat, item.lon, c.lat, c.lon) <= RADIUS_M
+                          ).length
+                          const { Icon, color, bg, label } = getReportIndicator(count)
                           return (
                             <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '0.3rem', padding: '0.15rem 0.5rem', borderRadius: '20px', background: bg, color, fontWeight: '600', fontSize: '0.72rem' }}>
                               <Icon size={12} />
@@ -218,28 +218,33 @@ export default function AdminDashboard() {
             {/* Right — Detail */}
             <div style={{
               background: '#fff', borderRadius: '12px', boxShadow: '0 1px 3px rgba(0,0,0,0.07)',
-              overflow: 'auto', padding: '1.5rem',
+              padding: '1.5rem', alignSelf: 'start',
             }}>
               {selected ? (
                 <>
                   {/* Header */}
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.25rem' }}>
                     <h2 style={{ fontSize: '1.1rem', fontWeight: '700', color: '#111', flex: 1 }}>{selected.title}</h2>
-                    <span style={{ fontSize: '0.75rem', padding: '0.25rem 0.65rem', borderRadius: '20px', background: statusStyle[selected.status].bg, color: statusStyle[selected.status].text, whiteSpace: 'nowrap', marginLeft: '0.75rem', flexShrink: 0 }}>
-                      {selected.status}
-                    </span>
+                    {(() => {
+                      const ss = STATUS_MAP[selected.status] ?? { bg: '#f0f0f0', text: '#555', label: selected.status }
+                      return (
+                        <span style={{ fontSize: '0.75rem', padding: '0.25rem 0.65rem', borderRadius: '20px', background: ss.bg, color: ss.text, whiteSpace: 'nowrap', marginLeft: '0.75rem', flexShrink: 0 }}>
+                          {ss.label}
+                        </span>
+                      )
+                    })()}
                   </div>
                   <p style={{ fontSize: '0.8rem', color: '#999', marginBottom: '1.25rem' }}>{selected.caseId}</p>
 
                   {/* Images */}
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.5rem', marginBottom: '1.5rem' }}>
-                    {selected.images.map((src, idx) => (
-                      <div key={idx} style={{ borderRadius: '8px', overflow: 'hidden', aspectRatio: '16/9', background: '#f0f0f0' }}>
-                        <img src={src} alt={`img-${idx}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                  {selected.imageUrl && (
+                    <div style={{ marginBottom: '1.5rem' }}>
+                      <div style={{ borderRadius: '8px', overflow: 'hidden', aspectRatio: '16/9', background: '#f0f0f0' }}>
+                        <img src={selected.imageUrl} alt="case" style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                           onError={(e) => { e.target.style.display = 'none' }} />
                       </div>
-                    ))}
-                  </div>
+                    </div>
+                  )}
 
                   {/* Description */}
                   <div style={{ marginBottom: '1.25rem' }}>
@@ -252,9 +257,9 @@ export default function AdminDashboard() {
                     <h3 style={{ fontSize: '0.9rem', fontWeight: '600', marginBottom: '0.4rem' }}>ตำแหน่ง</h3>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.85rem', color: '#555' }}>
                       <MapPin size={14} />
-                      <span>{selected.location}</span>
+                      <span>{selected.lat}, {selected.lon}</span>
                       <a
-                        href={`https://www.google.com/maps?q=${selected.lat},${selected.lng}`}
+                        href={`https://www.google.com/maps?q=${selected.lat},${selected.lon}`}
                         target="_blank"
                         rel="noopener noreferrer"
                         style={{ marginLeft: '0.25rem', color: '#3B82F6' }}
@@ -269,10 +274,10 @@ export default function AdminDashboard() {
                     <h3 style={{ fontSize: '0.9rem', fontWeight: '600', marginBottom: '0.4rem' }}>ข้อมูลรายงาน</h3>
                     <div style={{ display: 'flex', gap: '1.5rem', fontSize: '0.85rem', color: '#555' }}>
                       <span style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                        <Calendar size={14} /> วันที่ {selected.createdAt}
+                        <Calendar size={14} /> วันที่ {formatDate(selected.createdAt)}
                       </span>
                       <span style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                        <Clock size={14} /> {selected.time}
+                        <Clock size={14} /> {formatTime(selected.createdAt)}
                       </span>
                     </div>
                   </div>

@@ -2,28 +2,10 @@
 
 import { useEffect, useRef } from 'react'
 
-// Mock heatmap points: [lat, lng, intensity]
-const heatPoints = [
-  [14.0707, 100.6056, 0.9],
-  [14.0715, 100.6070, 0.7],
-  [14.0698, 100.6040, 0.8],
-  [14.0720, 100.6045, 0.5],
-  [14.0690, 100.6065, 0.6],
-  [14.0730, 100.6080, 0.4],
-  [14.0680, 100.6030, 0.7],
-  [14.0710, 100.6090, 0.3],
-  [14.0725, 100.6020, 0.5],
-  [14.0695, 100.6075, 0.8],
-  [14.0740, 100.6060, 0.6],
-  [14.0705, 100.6035, 0.9],
-  [14.0685, 100.6085, 0.4],
-  [14.0715, 100.6050, 0.7],
-  [14.0700, 100.6010, 0.5],
-]
-
-export default function HeatMap() {
+export default function HeatMap({ points = [] }) {
   const mapRef = useRef(null)
   const instanceRef = useRef(null)
+  const heatLayerRef = useRef(null)
 
   useEffect(() => {
     let map = null
@@ -33,7 +15,6 @@ export default function HeatMap() {
       await import('leaflet/dist/leaflet.css')
       await import('leaflet.heat')
 
-      // Fix default marker icons
       delete L.Icon.Default.prototype._getIconUrl
       L.Icon.Default.mergeOptions({
         iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
@@ -53,7 +34,10 @@ export default function HeatMap() {
         attribution: '© OpenStreetMap contributors',
       }).addTo(map)
 
-      L.heatLayer(heatPoints, {
+      const maxCount = Math.max(...points.map((p) => p.count), 1)
+      const heatPoints = points.map((p) => [p.lat, p.lon, p.count / maxCount])
+
+      heatLayerRef.current = L.heatLayer(heatPoints, {
         radius: 35,
         blur: 25,
         maxZoom: 17,
@@ -68,8 +52,17 @@ export default function HeatMap() {
     return () => {
       map?.remove()
       instanceRef.current = null
+      heatLayerRef.current = null
     }
   }, [])
+
+  // อัปเดต heatmap เมื่อ points เปลี่ยน
+  useEffect(() => {
+    if (!instanceRef.current || !heatLayerRef.current || points.length === 0) return
+    const maxCount = Math.max(...points.map((p) => p.count), 1)
+    const heatPoints = points.map((p) => [p.lat, p.lon, p.count / maxCount])
+    heatLayerRef.current.setLatLngs(heatPoints)
+  }, [points])
 
   return <div ref={mapRef} style={{ width: '100%', height: '100%' }} />
 }

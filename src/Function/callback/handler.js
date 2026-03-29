@@ -118,12 +118,13 @@ export async function handleListCases(replyToken, userId) {
     return;
   }
 
-  const bubbles = cases.map((c, i) => buildCaseBubble(c, i + 1));
+  const limited = cases.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).slice(0, 5);
+  const bubbles = limited.map((c, i) => buildCaseBubble(c, i + 1));
 
   await replyLine(replyToken, [
     {
       type: "flex",
-      altText: `รายการแจ้งเหตุของคุณ (${cases.length} รายการ)`,
+      altText: `รายการแจ้งเหตุของคุณ (${limited.length} รายการ)`,
       contents: { type: "carousel", contents: bubbles },
     },
   ]);
@@ -136,7 +137,7 @@ function buildCaseBubble(c) {
     type: "bubble",
     hero: {
       type: "image",
-      url: c.imageUrl || "https://via.placeholder.com/400x300?text=No+Image",
+      url: c.imageUrl || "https://incident-line-tu.s3.us-east-1.amazonaws.com/cases/case_1.jpg",
       size: "full",
       aspectRatio: "20:13",
       aspectMode: "cover",

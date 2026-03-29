@@ -1,6 +1,6 @@
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
-import { DynamoDBDocumentClient, GetCommand, QueryCommand, PutCommand, ScanCommand } from "@aws-sdk/lib-dynamodb";
-import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
+import { DynamoDBDocumentClient, GetCommand, QueryCommand, PutCommand, ScanCommand, DeleteCommand, UpdateCommand } from "@aws-sdk/lib-dynamodb";
+import { S3Client, PutObjectCommand, GetObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { randomUUID } from "crypto";
 
@@ -64,7 +64,7 @@ export async function getCasesByAgencyId(agencyId) {
 }
 
 
-// ดึง Agency ทั้งหมด
+// ดึง Agency ทั้งหมด พร้อม imageUrl และ Status
 export async function getAllAgenciesService() {
   const result = await dynamoDB.send(
     new ScanCommand({
@@ -76,7 +76,53 @@ export async function getAllAgenciesService() {
     })
   );
 
-  return result.Items || [];
+  const items = result.Items || [];
+
+  const itemsWithUrl = await Promise.all(
+    items.map(async (item) => {
+      if (item.ImageKey) {
+        const command = new GetObjectCommand({
+          Bucket: process.env.IMAGEBUCKET_BUCKET_NAME,
+          Key: item.ImageKey
+        });
+        item.ImageUrl = await getSignedUrl(s3Client, command, { expiresIn: 3600 });
+      }
+      return item;
+    })
+  );
+
+  return itemsWithUrl;
+}
+
+// ลบ Agency (Reject)
+export async function deleteAgencyService(agencyId) {
+  await dynamoDB.send(
+    new DeleteCommand({
+      TableName: TABLE_NAME,
+      Key: {
+        PK: `AGENCY#${agencyId}`,
+        SK: `METADATA#${agencyId}`
+      }
+    })
+  );
+}
+
+// อนุมัติ Agency เปลี่ยน Status เป็น Active
+export async function approveAgencyService(agencyId) {
+  const result = await dynamoDB.send(
+    new UpdateCommand({
+      TableName: TABLE_NAME,
+      Key: {
+        PK: `AGENCY#${agencyId}`,
+        SK: `METADATA#${agencyId}`
+      },
+      UpdateExpression: "SET #s = :active",
+      ExpressionAttributeNames: { "#s": "Status" },
+      ExpressionAttributeValues: { ":active": "ACTIVE" },
+      ReturnValues: "ALL_NEW"
+    })
+  );
+  return result.Attributes;
 }
 
 //Registration ให้ Agency
@@ -96,7 +142,8 @@ export async function registrationService(regisInformation) {
     LineUserID: regisInformation.lineUserID,
     Email: regisInformation.email,
     Status: "PENDING_REVIEW",
-    CreatedAt: now
+    CreatedAt: now,
+    ...(regisInformation.imageKey && { ImageKey: regisInformation.imageKey })
   };
 
   await dynamoDB.send(
