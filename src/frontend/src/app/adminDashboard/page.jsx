@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react'
 import { Search, Calendar, Clock, MapPin, ExternalLink, AlertCircle, AlertTriangle, Eye } from 'lucide-react'
+import liff from '@line/liff'
 import Navbar from '../components/Navbar'
 import Sidebar from '../components/Sidebar'
 
@@ -51,6 +52,10 @@ const STATUS_MAP = {
 }
 
 export default function AdminDashboard() {
+  const [liffReady, setLiffReady] = useState(false)
+  const [liffError, setLiffError] = useState(null)
+  const [profile, setProfile] = useState(null)
+
   const [activeFilter, setActiveFilter] = useState('ทั้งหมด')
   const [searchQuery, setSearchQuery] = useState('')
   const [cases, setCases] = useState([])
@@ -62,7 +67,24 @@ export default function AdminDashboard() {
   const [submitting, setSubmitting] = useState(false)
   const [groupCursors, setGroupCursors] = useState({})
 
+  // ── LIFF Init ──────────────────────────────────────────────────────────────
   useEffect(() => {
+    const initLiff = async () => {
+      try {
+        await liff.init({ liffId: process.env.NEXT_PUBLIC_LIFF_ID_PROBLEM_SEEKER })
+        if (!liff.isLoggedIn()) { liff.login(); return }
+        const userProfile = await liff.getProfile()
+        setProfile(userProfile)
+        setLiffReady(true)
+      } catch (err) {
+        setLiffError(err?.message ?? String(err))
+      }
+    }
+    initLiff()
+  }, [])
+
+  useEffect(() => {
+    if (!liffReady) return
     fetch(`${process.env.NEXT_PUBLIC_API_URL}/cases?admin=true`)
       .then((r) => r.json())
       .then((data) => {
@@ -71,7 +93,7 @@ export default function AdminDashboard() {
         if (items.length > 0) setSelected(items[0])
       })
       .catch(console.error)
-  }, [])
+  }, [liffReady])
 
   // หา caseIds ทั้งหมดที่เป็น duplicate ของ case ที่เลือก (title เดียวกัน + อยู่ใน radius)
   const getRelatedCaseIds = (item) =>
@@ -110,6 +132,25 @@ export default function AdminDashboard() {
     }
   }
 
+  if (liffError) {
+    return (
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f5f5f5' }}>
+        <div style={{ background: '#fff', borderRadius: '12px', padding: '2rem', maxWidth: '400px', textAlign: 'center', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
+          <p style={{ color: '#EF4444', fontWeight: '600', marginBottom: '0.5rem' }}>LIFF Error</p>
+          <p style={{ color: '#888', fontSize: '0.875rem' }}>{liffError}</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (!liffReady) {
+    return (
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f5f5f5' }}>
+        <p style={{ color: '#aaa', fontSize: '0.9rem' }}>กำลังโหลด...</p>
+      </div>
+    )
+  }
+
   const stats = [
     { label: 'Total',       value: cases.length,                                           labelColor: '#111' },
     { label: 'Pending',     value: cases.filter(c => c.status === 'PENDING').length,       labelColor: '#F59E0B' },
@@ -140,7 +181,7 @@ export default function AdminDashboard() {
 
   return (
     <div style={{ minHeight: '100vh', background: '#f5f5f5', display: 'flex', flexDirection: 'column' }}>
-      <Navbar accountName="Johny Eve" />
+      <Navbar accountName={profile?.displayName ?? 'Admin'} />
       <div style={{ display: 'flex', flex: 1 }}>
         <Sidebar />
         <main style={{ flex: 1, padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem', overflow: 'hidden' }}>

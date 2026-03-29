@@ -13,6 +13,48 @@ const TABS = ["ALL", "FORWARD", "IN_PROGRESS", "FINISHED"];
 const TAB_LABEL = { ALL: "ALL", FORWARD: "รอรับงาน", IN_PROGRESS: "กำลังดำเนิน", FINISHED: "เสร็จสิ้น" };
 const TAB_COLOR = { ALL: "#111", FORWARD: "#F59E0B", IN_PROGRESS: "#3B82F6", FINISHED: "#10B981" };
 
+const GROUP_RADIUS_M = 500;
+
+function haversine(lat1, lon1, lat2, lon2) {
+  const R = 6371000;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = Math.sin(dLat / 2) ** 2
+    + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+function groupCases(cases) {
+  const groups = [];
+  for (const item of cases) {
+    const existing = groups.find(
+      (g) => g.title === item.title && haversine(g.lat, g.lon, item.lat, item.lon) <= GROUP_RADIUS_M
+    );
+    if (existing) {
+      existing.cases.push(item);
+      if (!existing.imageUrl && item.imageUrl) existing.imageUrl = item.imageUrl;
+    } else {
+      groups.push({
+        groupId: item.caseId,
+        title: item.title,
+        description: item.description,
+        lat: item.lat,
+        lon: item.lon,
+        imageUrl: item.imageUrl ?? null,
+        createdAt: item.createdAt,
+        cases: [item],
+      });
+    }
+  }
+  return groups.map((g) => ({ ...g, status: deriveGroupStatus(g.cases), count: g.cases.length }));
+}
+
+function deriveGroupStatus(cases) {
+  if (cases.every((c) => c.status === "FINISHED")) return "FINISHED";
+  if (cases.some((c) => c.status === "IN_PROGRESS")) return "IN_PROGRESS";
+  return "FORWARD";
+}
+
 function formatDate(iso) {
   if (!iso) return "-";
   const d = new Date(iso);
@@ -25,26 +67,28 @@ function formatTime(iso) {
   return `${d.getHours().toString().padStart(2, "0")}:${d.getMinutes().toString().padStart(2, "0")}`;
 }
 
+const API = process.env.NEXT_PUBLIC_API_URL;
+
 export default function AgencyWeb() {
-  const [auth, setAuth] = useState(null); // { userId, agencyId }
+  const [auth, setAuth] = useState(null);
   const [cases, setCases] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState("ALL");
   const [search, setSearch] = useState("");
-  const [selected, setSelected] = useState(null);
-  const [accepted, setAccepted] = useState(false);
+  const [selectedGroup, setSelectedGroup] = useState(null);
   const [showSendForm, setShowSendForm] = useState(false);
   const [sendPhoto, setSendPhoto] = useState(null);
-  const [sendPhotoFile, setSendPhotoFile] = useState(null); // used when submit is implemented
+  const [sendPhotoFile, setSendPhotoFile] = useState(null);
   const [summary, setSummary] = useState("");
+  const [actionLoading, setActionLoading] = useState(false);
   const sendPhotoRef = useRef(null);
 
   // ── LIFF Init + Auth ───────────────────────────────────────────────────────
   useEffect(() => {
     const init = async () => {
       try {
-        await liff.init({ liffId: process.env.NEXT_PUBLIC_LIFF_ID_AGENCY });
+        await liff.init({ liffId: process.env.NEXT_PUBLIC_LIFF_ID_AGENCYWEB });
         if (!liff.isLoggedIn()) { liff.login(); return; }
 
         const profile = await liff.getProfile();
@@ -70,19 +114,26 @@ export default function AgencyWeb() {
     if (!auth) return;
     const { userId, agencyId } = auth;
     setLoading(true);
-    fetch(`${process.env.NEXT_PUBLIC_API_URL}/agencies/${agencyId}/cases`, {
+    fetch(`${API}/agencies/${agencyId}/cases`, {
       headers: { userid: userId, agencyid: agencyId, role: "agency" },
     })
       .then((r) => r.json())
-      .then((data) => {
-        setCases(Array.isArray(data) ? data : []);
-        setLoading(false);
-      })
-      .catch((err) => {
-        setError(err.message);
-        setLoading(false);
-      });
+      .then((data) => { setCases(Array.isArray(data) ? data : []); setLoading(false); })
+      .catch((err) => { setError(err.message); setLoading(false); });
   }, [auth]);
+
+  const groups = groupCases(cases);
+
+  const counts = TABS.reduce((acc, tab) => {
+    acc[tab] = tab === "ALL" ? groups.length : groups.filter((g) => g.status === tab).length;
+    return acc;
+  }, {});
+
+  const filtered = groups.filter((g) => {
+    const matchTab = activeTab === "ALL" || g.status === activeTab;
+    const matchSearch = !search || g.title?.includes(search);
+    return matchTab && matchSearch;
+  });
 
   const handleSendPhotoCapture = (e) => {
     const file = e.target.files?.[0];
@@ -92,16 +143,93 @@ export default function AgencyWeb() {
     e.target.value = "";
   };
 
-  const counts = TABS.reduce((acc, tab) => {
-    acc[tab] = tab === "ALL" ? cases.length : cases.filter((c) => c.status === tab).length;
-    return acc;
-  }, {});
+  // ── Accept all cases in group ──────────────────────────────────────────────
+  const handleAcceptGroup = async () => {
+    if (!selectedGroup || !auth) return;
+    setActionLoading(true);
+    try {
+      const forwardedCases = selectedGroup.cases.filter((c) => c.status === "FORWARD");
+      await Promise.all(
+        forwardedCases.map((c) =>
+          fetch(`${API}/agencies/cases/${c.caseId}/accept`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ userId: auth.userId }),
+          })
+        )
+      );
+      // Refresh cases
+      const res = await fetch(`${API}/agencies/${auth.agencyId}/cases`, {
+        headers: { userid: auth.userId, agencyid: auth.agencyId, role: "agency" },
+      });
+      const data = await res.json();
+      const updated = Array.isArray(data) ? data : [];
+      setCases(updated);
+      // Update selectedGroup with new data
+      const updatedGroups = groupCases(updated);
+      const refreshed = updatedGroups.find((g) => g.groupId === selectedGroup.groupId);
+      setSelectedGroup(refreshed ?? null);
+    } catch (err) {
+      console.error("Accept error:", err);
+    } finally {
+      setActionLoading(false);
+    }
+  };
 
-  const filtered = cases.filter((c) => {
-    const matchTab = activeTab === "ALL" || c.status === activeTab;
-    const matchSearch = c.title?.includes(search) || c.caseId?.includes(search);
-    return matchTab && matchSearch;
-  });
+  // ── Complete all cases in group ────────────────────────────────────────────
+  const handleSubmitComplete = async () => {
+    if (!selectedGroup || !sendPhotoFile || !summary.trim()) return;
+    setActionLoading(true);
+    try {
+      // 1. Get presigned URL
+      const presignRes = await fetch(`${API}/agencies/presign`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ filename: sendPhotoFile.name, contentType: sendPhotoFile.type }),
+      });
+      const { uploadUrl, key } = await presignRes.json();
+
+      // 2. Upload photo to S3
+      await fetch(uploadUrl, {
+        method: "PUT",
+        headers: { "Content-Type": sendPhotoFile.type },
+        body: sendPhotoFile,
+      });
+
+      // 3. Complete all IN_PROGRESS cases in group
+      const inProgressCases = selectedGroup.cases.filter((c) => c.status === "IN_PROGRESS");
+      await Promise.all(
+        inProgressCases.map((c) =>
+          fetch(`${API}/agencies/cases/${c.caseId}/complete`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ imageKeyAfter: key, summary: summary.trim() }),
+          })
+        )
+      );
+
+      // 4. Refresh
+      const res = await fetch(`${API}/agencies/${auth.agencyId}/cases`, {
+        headers: { userid: auth.userId, agencyid: auth.agencyId, role: "agency" },
+      });
+      const data = await res.json();
+      const updated = Array.isArray(data) ? data : [];
+      setCases(updated);
+
+      setShowSendForm(false);
+      setSendPhoto(null);
+      setSendPhotoFile(null);
+      setSummary("");
+
+      const updatedGroups = groupCases(updated);
+      const refreshed = updatedGroups.find((g) => g.groupId === selectedGroup.groupId);
+      setSelectedGroup(refreshed ?? null);
+    } catch (err) {
+      console.error("Complete error:", err);
+    } finally {
+      setActionLoading(false);
+    }
+  };
 
   // ── Loading / Error ────────────────────────────────────────────────────────
   if (loading) {
@@ -120,7 +248,7 @@ export default function AgencyWeb() {
     );
   }
 
-  // ── Top Bar (shared) ───────────────────────────────────────────────────────
+  // ── Top Bar ────────────────────────────────────────────────────────────────
   const TopBar = ({ onBack, title }) => (
     <div className="flex items-center justify-between px-4 pt-5 pb-4 border-b-2 border-gray-200 shadow-sm">
       {onBack ? (
@@ -138,10 +266,6 @@ export default function AgencyWeb() {
           <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
           <path d="M13.73 21a2 2 0 0 1-3.46 0" />
         </svg>
-        <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 text-gray-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <circle cx="12" cy="12" r="3" />
-          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
-        </svg>
         <div className="w-8 h-8 rounded-full bg-gray-200 overflow-hidden flex items-center justify-center">
           <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 text-gray-400" viewBox="0 0 24 24" fill="currentColor">
             <path d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v2.4h19.2v-2.4c0-3.2-6.4-4.8-9.6-4.8z" />
@@ -151,43 +275,41 @@ export default function AgencyWeb() {
     </div>
   );
 
-  // ── Detail View ────────────────────────────────────────────────────────────
-  if (selected) {
-    const badge = STATUS_BADGE[selected.status] ?? { bg: "#f0f0f0", text: "#555", label: selected.status, dot: "#aaa" };
-    const images = selected.imageUrl ? [selected.imageUrl] : [];
+  // ── Group Detail View ──────────────────────────────────────────────────────
+  if (selectedGroup) {
+    const badge = STATUS_BADGE[selectedGroup.status] ?? { bg: "#f0f0f0", text: "#555", label: selectedGroup.status, dot: "#aaa" };
+    const canAccept = selectedGroup.cases.some((c) => c.status === "FORWARD");
+    const canComplete = selectedGroup.cases.some((c) => c.status === "IN_PROGRESS");
 
     return (
       <div className="min-h-screen bg-white flex flex-col">
-        <TopBar onBack={() => { setSelected(null); setAccepted(false); }} title="Problem List" />
+        <TopBar onBack={() => setSelectedGroup(null)} title="Problem List" />
 
         <div className="flex-1 overflow-y-auto px-4 py-4">
 
           {/* Title + Badge */}
           <div className="flex items-start justify-between gap-2 mb-1">
-            <h2 className="text-base font-bold text-gray-900 flex-1">{selected.title}</h2>
+            <h2 className="text-base font-bold text-gray-900 flex-1">{selectedGroup.title}</h2>
             <span className="text-xs px-2 py-1 rounded-lg flex-shrink-0 font-medium"
               style={{ backgroundColor: badge.bg, color: badge.text }}>
               {badge.label}
             </span>
           </div>
-          <p className="text-xs text-gray-400 mb-4">{selected.caseId}</p>
+          <p className="text-xs text-gray-400 mb-1">{selectedGroup.count} เคส</p>
+          <p className="text-xs text-gray-400 mb-4">{selectedGroup.groupId}</p>
 
-          {/* Images */}
-          {images.length > 0 && (
-            <div className="grid grid-cols-2 gap-2 mb-5">
-              {images.map((src, idx) => (
-                <div key={idx} className="rounded-xl overflow-hidden bg-gray-100 aspect-video">
-                  <img src={src} alt="" className="w-full h-full object-cover"
-                    onError={(e) => { e.target.style.display = "none"; }} />
-                </div>
-              ))}
+          {/* Cover image */}
+          {selectedGroup.imageUrl && (
+            <div className="rounded-xl overflow-hidden bg-gray-100 aspect-video mb-5">
+              <img src={selectedGroup.imageUrl} alt="" className="w-full h-full object-cover"
+                onError={(e) => { e.target.style.display = "none"; }} />
             </div>
           )}
 
           {/* อธิบาย */}
           <div className="mb-5">
             <h3 className="text-sm font-bold text-gray-800 mb-2">อธิบาย</h3>
-            <p className="text-sm text-gray-600 leading-relaxed">{selected.description}</p>
+            <p className="text-sm text-gray-600 leading-relaxed">{selectedGroup.description}</p>
           </div>
 
           {/* ตำแหน่ง */}
@@ -197,12 +319,34 @@ export default function AgencyWeb() {
               <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 text-gray-400 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 0 1 18 0z" /><circle cx="12" cy="10" r="3" />
               </svg>
-              <span>{selected.lat}, {selected.lon}</span>
-              <a href={`https://www.google.com/maps?q=${selected.lat},${selected.lon}`} target="_blank" rel="noopener noreferrer" className="text-blue-500 flex-shrink-0">
+              <span>{selectedGroup.lat}, {selectedGroup.lon}</span>
+              <a href={`https://www.google.com/maps?q=${selectedGroup.lat},${selectedGroup.lon}`} target="_blank" rel="noopener noreferrer" className="text-blue-500 flex-shrink-0">
                 <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" /><polyline points="15 3 21 3 21 9" /><line x1="10" y1="14" x2="21" y2="3" />
                 </svg>
               </a>
+            </div>
+          </div>
+
+          {/* รายการเคสในกลุ่ม */}
+          <div className="mb-6">
+            <h3 className="text-sm font-bold text-gray-800 mb-2">รายการเคส ({selectedGroup.count})</h3>
+            <div className="flex flex-col gap-2">
+              {selectedGroup.cases.map((c) => {
+                const cb = STATUS_BADGE[c.status] ?? { bg: "#f0f0f0", text: "#555", label: c.status, dot: "#aaa" };
+                return (
+                  <div key={c.caseId} className="flex items-center justify-between px-3 py-2 rounded-xl bg-gray-50">
+                    <div className="min-w-0">
+                      <p className="text-xs font-medium text-gray-700 truncate">{c.caseId}</p>
+                      <p className="text-xs text-gray-400">{formatDate(c.createdAt)} {formatTime(c.createdAt)}</p>
+                    </div>
+                    <span className="text-xs px-2 py-0.5 rounded-lg font-medium flex-shrink-0 ml-2"
+                      style={{ backgroundColor: cb.bg, color: cb.text }}>
+                      {cb.label}
+                    </span>
+                  </div>
+                );
+              })}
             </div>
           </div>
 
@@ -214,41 +358,40 @@ export default function AgencyWeb() {
                 <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <rect x="3" y="4" width="18" height="18" rx="2" ry="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" />
                 </svg>
-                วันที่ {formatDate(selected.createdAt)}
+                วันที่ {formatDate(selectedGroup.createdAt)}
               </span>
               <span className="flex items-center gap-1">
                 <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" />
                 </svg>
-                {formatTime(selected.createdAt)}
+                {formatTime(selectedGroup.createdAt)}
               </span>
             </div>
           </div>
 
-          {/* Buttons */}
+          {/* Action Buttons */}
           <div className="flex flex-col gap-3 pb-6">
-            <button
-              onClick={() => { setSelected(null); setAccepted(false); }}
-              className="w-full py-3 rounded-2xl text-sm font-semibold text-gray-700 border border-gray-300 bg-white"
-            >
+            <button onClick={() => setSelectedGroup(null)}
+              className="w-full py-3 rounded-2xl text-sm font-semibold text-gray-700 border border-gray-300 bg-white">
               Backward
             </button>
-            <button
-              onClick={() => setAccepted(true)}
-              className="w-full py-3 rounded-2xl text-sm font-semibold text-white flex items-center justify-center gap-2 transition-all duration-300"
-              style={{ backgroundColor: accepted ? "#065F46" : "#10B981" }}
-            >
-              {accepted && (
-                <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                  <polyline points="20 6 9 17 4 12" />
-                </svg>
-              )}
-              {accepted ? "รับงานแล้ว" : "รับงาน"}
-            </button>
-            {accepted && (
+
+            {canAccept && (
+              <button
+                onClick={handleAcceptGroup}
+                disabled={actionLoading}
+                className="w-full py-3 rounded-2xl text-sm font-semibold text-white flex items-center justify-center gap-2 disabled:opacity-60"
+                style={{ backgroundColor: "#10B981" }}
+              >
+                {actionLoading ? "กำลังดำเนินการ..." : `รับงานทั้งหมด (${selectedGroup.cases.filter(c => c.status === "FORWARD").length} เคส)`}
+              </button>
+            )}
+
+            {canComplete && (
               <button
                 onClick={() => setShowSendForm(true)}
-                className="w-full py-3 rounded-2xl text-sm font-semibold text-white"
+                disabled={actionLoading}
+                className="w-full py-3 rounded-2xl text-sm font-semibold text-white disabled:opacity-60"
                 style={{ backgroundColor: "#3B82F6" }}
               >
                 ส่งงาน
@@ -309,8 +452,13 @@ export default function AgencyWeb() {
                 value={summary}
                 onChange={(e) => setSummary(e.target.value)}
               />
-              <button className="w-full py-3 rounded-2xl text-sm font-semibold text-white" style={{ backgroundColor: "#10B981" }}>
-                ยืนยันส่งงาน
+              <button
+                onClick={handleSubmitComplete}
+                disabled={actionLoading || !sendPhotoFile || !summary.trim()}
+                className="w-full py-3 rounded-2xl text-sm font-semibold text-white disabled:opacity-60"
+                style={{ backgroundColor: "#10B981" }}
+              >
+                {actionLoading ? "กำลังส่ง..." : "ยืนยันส่งงาน"}
               </button>
             </div>
           </div>
@@ -320,7 +468,7 @@ export default function AgencyWeb() {
     );
   }
 
-  // ── List View ──────────────────────────────────────────────────────────────
+  // ── Group List View ────────────────────────────────────────────────────────
   return (
     <div className="min-h-screen bg-white flex flex-col">
       <TopBar title="Problem List" />
@@ -356,40 +504,40 @@ export default function AgencyWeb() {
         </div>
       </div>
 
-      {/* Case List */}
+      {/* Group List */}
       <div className="flex flex-col px-4 flex-1">
         {filtered.length === 0 ? (
           <p className="text-center text-gray-400 text-sm mt-10">ไม่มีรายการ</p>
         ) : (
-          filtered.map((item) => {
-            const badge = STATUS_BADGE[item.status] ?? { dot: "#aaa" };
+          filtered.map((group) => {
+            const badge = STATUS_BADGE[group.status] ?? { dot: "#aaa", label: group.status };
             return (
-              <div key={item.caseId} onClick={() => setSelected(item)}
+              <div key={group.groupId} onClick={() => setSelectedGroup(group)}
                 className="flex gap-3 py-3 border-b border-gray-100 cursor-pointer active:bg-gray-50">
                 <div className="w-20 h-16 rounded-xl overflow-hidden flex-shrink-0 bg-gray-100">
-                  {item.imageUrl && (
-                    <img src={item.imageUrl} alt="" className="w-full h-full object-cover"
+                  {group.imageUrl && (
+                    <img src={group.imageUrl} alt="" className="w-full h-full object-cover"
                       onError={(e) => { e.target.style.display = "none"; }} />
                   )}
                 </div>
                 <div className="flex-1 min-w-0 flex flex-col justify-between">
                   <div>
-                    <p className="text-sm font-semibold text-gray-900 truncate">{item.title}</p>
-                    <p className="text-xs text-gray-400 mb-1">{item.caseId}</p>
-                    <p className="text-xs text-gray-500 leading-snug line-clamp-2">{item.description}</p>
+                    <p className="text-sm font-semibold text-gray-900 truncate">{group.title}</p>
+                    <p className="text-xs text-gray-400 mb-1">{group.count} เคส</p>
+                    <p className="text-xs text-gray-500 leading-snug line-clamp-2">{group.description}</p>
                   </div>
                   <div className="flex items-center gap-3 mt-1">
                     <span className="flex items-center gap-1 text-xs text-gray-400">
                       <svg xmlns="http://www.w3.org/2000/svg" className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                         <rect x="3" y="4" width="18" height="18" rx="2" ry="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" />
                       </svg>
-                      {formatDate(item.createdAt)}
+                      {formatDate(group.createdAt)}
                     </span>
                     <span className="flex items-center gap-1 text-xs text-gray-400">
                       <svg xmlns="http://www.w3.org/2000/svg" className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                         <circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" />
                       </svg>
-                      {formatTime(item.createdAt)}
+                      {formatTime(group.createdAt)}
                     </span>
                   </div>
                 </div>

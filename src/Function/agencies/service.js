@@ -1,5 +1,5 @@
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
-import { DynamoDBDocumentClient, GetCommand, QueryCommand, PutCommand, ScanCommand, DeleteCommand, UpdateCommand } from "@aws-sdk/lib-dynamodb";
+import { DynamoDBDocumentClient, GetCommand, PutCommand, ScanCommand, DeleteCommand, UpdateCommand } from "@aws-sdk/lib-dynamodb";
 import { S3Client, PutObjectCommand, GetObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { randomUUID } from "crypto";
@@ -34,13 +34,13 @@ export async function getAgencyPresignedUrlService(filename, contentType) {
 }
 
 // ดึงเคสเดียวตาม agencyId + caseId
-export async function getCaseById(agencyId, caseId) {
+export async function getCaseById(_agencyId, caseId) {
   const result = await dynamoDB.send(
     new GetCommand({
       TableName: TABLE_NAME,
       Key: {
-        PK: agencyId,
-        SK: caseId
+        PK: `CASE#${caseId}`,
+        SK: "METADATA"
       }
     })
   );
@@ -48,19 +48,36 @@ export async function getCaseById(agencyId, caseId) {
   return result.Item;
 }
 
-// ดึงทุกเคสของ agency เดียวกัน
+// ดึงทุกเคสที่ assign ให้ agency นี้ (scan by AssignedAgencyID)
 export async function getCasesByAgencyId(agencyId) {
   const result = await dynamoDB.send(
-    new QueryCommand({
+    new ScanCommand({
       TableName: TABLE_NAME,
-      KeyConditionExpression: "PK = :agencyId",
+      FilterExpression: "AssignedAgencyID = :agencyId AND begins_with(PK, :prefix)",
       ExpressionAttributeValues: {
-        ":agencyId": agencyId
+        ":agencyId": agencyId,
+        ":prefix": "CASE#"
       }
     })
   );
 
-  return result.Items || [];
+  const items = result.Items || [];
+
+  // แนบ signed URL สำหรับรูปก่อนงาน
+  return Promise.all(
+    items.map(async (item) => {
+      if (item.imageUrlBefore && !item.imageUrlBefore.startsWith("http")) {
+        const cmd = new GetObjectCommand({
+          Bucket: process.env.IMAGEBUCKET_BUCKET_NAME,
+          Key: item.imageUrlBefore
+        });
+        item.imageUrl = await getSignedUrl(s3Client, cmd, { expiresIn: 3600 });
+      } else {
+        item.imageUrl = item.imageUrlBefore ?? null;
+      }
+      return item;
+    })
+  );
 }
 
 
@@ -156,85 +173,82 @@ export async function registrationService(regisInformation) {
   return item;
 }
 
+// รับงาน: เปลี่ยนสถานะเป็น IN_PROGRESS
 export const acceptCaseService = async (caseId, userId) => {
-    const TableName = process.env.TABLE_TABLE_NAME
+  const PK = `CASE#${caseId}`;
+  const SK = "METADATA";
 
-    const PK = `REPORT#${caseId}`
-    const SK = `METADATA#${caseId}`
-
-    //หา case
-    const { Item } = await docClient.send(new GetCommand({
-    TableName,
+  const { Item } = await dynamoDB.send(new GetCommand({
+    TableName: TABLE_NAME,
     Key: { PK, SK }
-    }))
+  }));
 
-    if (!Item) {
-        return {
-            success: false,
-            message: "Case not found"
-        }
-    }
-
-    //หา agency จาก userId
-    const agencyRes = await docClient.send(new ScanCommand({
-        TableName,
-        FilterExpression: "UserID = :uid",
-        ExpressionAttributeValues: {
-            ":uid": userId
-        }
-    }))
-
-    const agencyItem = agencyRes.Items?.[0]
-
-    if (!agencyItem) {
-        return { success: false, message: "Agency not found for this user" }
-    }
-
-    const agencyId = agencyItem.PK
-
-    //เช็คว่าเคสถูก assign ไหม   
-    if (!Item.AssignedAgencyID) {
-        return {
-            success: false,
-            message: "This case has not been assigned to any agency"
-        }
-    }
-
-    //เช็คว่าเป็น agency ที่ถูก assign ไหม
-    if (Item.AssignedAgencyID !== agencyId) {
-    return {
-        success: false,
-        message: "You are not assigned to this case"
-        }
-    }
-
-    //ต้องเป็น FORWARDED ก่อนถึงรับได้
-    if (Item.Status !== "FORWARDED") {
-        return {
-            success: false,
-            message: "Case must be FORWARDED before accepting"
-        }
-    }
-
-    //update
-    await docClient.send(new UpdateCommand({
-        TableName,
-        Key: { PK, SK },
-        UpdateExpression: `
-            SET #status = :status,
-                AcceptedAt = :now
-        `,
-        ExpressionAttributeNames: {
-            "#status": "Status"
-        },
-        ExpressionAttributeValues: {
-            ":status": "IN_PROGRESS",
-            ":now": new Date().toISOString()
-        }
-    }))
-
-    return {
-        message: "Case accepted successfully",
-        status: "IN_PROGRESS"
-    }
+  if (!Item) {
+    return { success: false, message: "Case not found" };
   }
+
+  // หา agency จาก userId
+  const agencyRes = await dynamoDB.send(new ScanCommand({
+    TableName: TABLE_NAME,
+    FilterExpression: "UserID = :uid AND begins_with(PK, :prefix)",
+    ExpressionAttributeValues: {
+      ":uid": userId,
+      ":prefix": "AGENCY#"
+    }
+  }));
+
+  const agencyItem = agencyRes.Items?.[0];
+  if (!agencyItem) {
+    return { success: false, message: "Agency not found for this user" };
+  }
+
+  // AgencyID คือ UUID ที่เก็บใน field AgencyID (ไม่ใช่ PK ที่มี prefix AGENCY#)
+  const agencyId = agencyItem.AgencyID;
+
+  if (!Item.AssignedAgencyID) {
+    return { success: false, message: "This case has not been assigned to any agency" };
+  }
+
+  if (Item.AssignedAgencyID !== agencyId) {
+    return { success: false, message: "You are not assigned to this case" };
+  }
+
+  if (Item.status !== "FORWARD") {
+    return { success: false, message: "Case must be FORWARD before accepting" };
+  }
+
+  await dynamoDB.send(new UpdateCommand({
+    TableName: TABLE_NAME,
+    Key: { PK, SK },
+    UpdateExpression: "SET #status = :status, AcceptedAt = :now",
+    ExpressionAttributeNames: { "#status": "status" },
+    ExpressionAttributeValues: {
+      ":status": "IN_PROGRESS",
+      ":now": new Date().toISOString()
+    }
+  }));
+
+  return { success: true, message: "Case accepted successfully", status: "IN_PROGRESS" };
+};
+
+// ปิดเคส: บันทึกรูปหลังทำงาน + summary
+export const completeCaseService = async (caseId, imageKeyAfter, summary) => {
+  const result = await dynamoDB.send(new UpdateCommand({
+    TableName: TABLE_NAME,
+    Key: {
+      PK: `CASE#${caseId}`,
+      SK: "METADATA"
+    },
+    UpdateExpression: "SET #status = :status, ImageKeyAfter = :imageKeyAfter, Summary = :summary, CompletedAt = :completedAt",
+    ExpressionAttributeNames: { "#status": "status" },
+    ExpressionAttributeValues: {
+      ":status": "FINISHED",
+      ":imageKeyAfter": imageKeyAfter,
+      ":summary": summary,
+      ":completedAt": new Date().toISOString()
+    },
+    ReturnValues: "ALL_NEW"
+  }));
+
+  return result.Attributes;
+};
