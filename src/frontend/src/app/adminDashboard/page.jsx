@@ -1,9 +1,12 @@
 'use client'
 
 import { useState, useEffect, useMemo } from 'react'
+import liff from '@line/liff'
 import { Search, Calendar, Clock, MapPin, ExternalLink, AlertCircle, AlertTriangle, Eye } from 'lucide-react'
 import Navbar from '../components/Navbar'
 import Sidebar from '../components/Sidebar'
+
+const API = process.env.NEXT_PUBLIC_API_URL
 
 const filterTabs = ['ทั้งหมด', 'รอดำเนินการ', 'กำลังดำเนินการ', 'เสร็จสิ้น']
 
@@ -51,6 +54,10 @@ const STATUS_MAP = {
 }
 
 export default function AdminDashboard() {
+  const [auth, setAuth] = useState(null)
+  const [authLoading, setAuthLoading] = useState(true)
+  const [authError, setAuthError] = useState(null)
+
   const [activeFilter, setActiveFilter] = useState('ทั้งหมด')
   const [searchQuery, setSearchQuery] = useState('')
   const [cases, setCases] = useState([])
@@ -62,8 +69,39 @@ export default function AdminDashboard() {
   const [submitting, setSubmitting] = useState(false)
   const [groupCursors, setGroupCursors] = useState({})
 
+  // ── LIFF Init + Admin Check ────────────────────────────────────────────────
   useEffect(() => {
-    fetch(`${process.env.NEXT_PUBLIC_API_URL}/cases?admin=true`)
+    const init = async () => {
+      try {
+        await liff.init({ liffId: process.env.NEXT_PUBLIC_LIFF_ID_PROBLEM_SEEKER })
+        if (!liff.isLoggedIn()) { liff.login(); return }
+
+        const profile = await liff.getProfile()
+
+        const res = await fetch(`${API}/admin/me`, {
+          headers: { userid: profile.userId },
+        })
+        if (!res.ok) {
+          setAuthError('คุณไม่มีสิทธิ์เข้าใช้งานระบบนี้')
+          setAuthLoading(false)
+          return
+        }
+
+        const { admin } = await res.json()
+        setAuth({ userId: profile.userId, name: admin.Name })
+      } catch (err) {
+        setAuthError(err?.message ?? 'LIFF initialization failed')
+      } finally {
+        setAuthLoading(false)
+      }
+    }
+    init()
+  }, [])
+
+  // ── Fetch Cases (หลัง auth) ────────────────────────────────────────────────
+  useEffect(() => {
+    if (!auth) return
+    fetch(`${API}/cases?admin=true`)
       .then((r) => r.json())
       .then((data) => {
         const items = Array.isArray(data) ? data : []
@@ -71,7 +109,7 @@ export default function AdminDashboard() {
         if (items.length > 0) setSelected(items[0])
       })
       .catch(console.error)
-  }, [])
+  }, [auth])
 
   // หา caseIds ทั้งหมดที่เป็น duplicate ของ case ที่เลือก (title เดียวกัน + อยู่ใน radius)
   const getRelatedCaseIds = (item) =>
@@ -85,7 +123,17 @@ export default function AdminDashboard() {
     setLoadingAgencies(true)
     fetch(`${process.env.NEXT_PUBLIC_API_URL}/agencies`)
       .then(r => r.json())
-      .then(data => setAgencies(Array.isArray(data.agencies) ? data.agencies.filter(a => a.Status === 'ACTIVE') : []))
+      .then(data => {
+        const active = Array.isArray(data.agencies) ? data.agencies.filter(a => a.Status === 'ACTIVE') : []
+        // group by AgencyName
+        const groupMap = {}
+        for (const a of active) {
+          const name = a.AgencyName || 'ไม่ระบุ'
+          if (!groupMap[name]) groupMap[name] = []
+          groupMap[name].push(a)
+        }
+        setAgencies(Object.entries(groupMap).map(([name, members]) => ({ name, members })))
+      })
       .catch(console.error)
       .finally(() => setLoadingAgencies(false))
   }
@@ -95,10 +143,10 @@ export default function AdminDashboard() {
     setSubmitting(true)
     try {
       const caseIds = getRelatedCaseIds(selected)
-      await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/cases/${selected.caseId}/agencies/${selectedAgency.AgencyID}`, {
+      await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/cases/${selected.caseId}/assign`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ caseIds }),
+        body: JSON.stringify({ agencyName: selectedAgency.name, caseIds }),
       })
       setCases(prev => prev.map(c => caseIds.includes(c.caseId) ? { ...c, status: 'FORWARD' } : c))
       setSelected(prev => prev ? { ...prev, status: 'FORWARD' } : prev)
@@ -138,9 +186,25 @@ export default function AdminDashboard() {
     return result
   }, [filtered])
 
+  if (authLoading) {
+    return (
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#FFE2C2' }}>
+        <p style={{ color: '#aaa', fontSize: '0.9rem' }}>กำลังตรวจสอบสิทธิ์...</p>
+      </div>
+    )
+  }
+
+  if (authError) {
+    return (
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#FFE2C2', padding: '2rem' }}>
+        <p style={{ color: '#EF4444', fontSize: '0.9rem', textAlign: 'center' }}>{authError}</p>
+      </div>
+    )
+  }
+
   return (
-    <div style={{ minHeight: '100vh', background: '#f5f5f5', display: 'flex', flexDirection: 'column' }}>
-      <Navbar accountName="Admin" />
+    <div style={{ minHeight: '100vh', background: '#FFE2C2', display: 'flex', flexDirection: 'column' }}>
+      <Navbar accountName={auth?.name ?? 'Admin'} />
       <div style={{ display: 'flex', flex: 1 }}>
         <Sidebar />
         <main style={{ flex: 1, padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem', overflow: 'hidden' }}>
@@ -193,7 +257,7 @@ export default function AdminDashboard() {
 
           <style>{`
             .left-scroll::-webkit-scrollbar { width: 6px; }
-            .left-scroll::-webkit-scrollbar-track { background: #f5f5f5; border-radius: 8px; }
+            .left-scroll::-webkit-scrollbar-track { background: #FFE2C2; border-radius: 8px; }
             .left-scroll::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 8px; }
             .left-scroll::-webkit-scrollbar-thumb:hover { background: #9ca3af; }
           `}</style>
@@ -408,24 +472,21 @@ export default function AdminDashboard() {
               <div style={{ textAlign: 'center', padding: '2rem', color: '#aaa', fontSize: '0.875rem' }}>ไม่มีหน่วยงานที่พร้อมรับงาน</div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', maxHeight: '320px', overflowY: 'auto', marginBottom: '1.25rem' }}>
-                {agencies.map((agency) => {
-                  const isChosen = selectedAgency?.AgencyID === agency.AgencyID
+                {agencies.map((group) => {
+                  const isChosen = selectedAgency?.name === group.name
                   return (
-                    <div key={agency.AgencyID} onClick={() => setSelectedAgency(agency)} style={{
+                    <div key={group.name} onClick={() => setSelectedAgency(group)} style={{
                       display: 'flex', alignItems: 'center', gap: '0.85rem',
                       padding: '0.75rem 1rem', borderRadius: '10px', cursor: 'pointer',
                       border: `2px solid ${isChosen ? '#3B82F6' : '#e5e5e5'}`,
                       background: isChosen ? '#EFF6FF' : '#fff', transition: 'all 0.15s',
                     }}>
-                      <div style={{ width: '40px', height: '40px', borderRadius: '50%', flexShrink: 0, background: '#f0f0f0', overflow: 'hidden' }}>
-                        {agency.ImageUrl
-                          ? <img src={agency.ImageUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={(e) => { e.target.style.display = 'none' }} />
-                          : <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#aaa' }}>🏢</div>
-                        }
+                      <div style={{ width: '40px', height: '40px', borderRadius: '50%', flexShrink: 0, background: '#EDE9FE', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.2rem' }}>
+                        🏢
                       </div>
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        <p style={{ fontSize: '0.875rem', fontWeight: '600', color: '#111', marginBottom: '0.1rem' }}>{agency.AgencyName}</p>
-                        <p style={{ fontSize: '0.75rem', color: '#999' }}>{agency.Name} {agency.Surname}</p>
+                        <p style={{ fontSize: '0.875rem', fontWeight: '600', color: '#111', marginBottom: '0.1rem' }}>{group.name}</p>
+                        <p style={{ fontSize: '0.75rem', color: '#999' }}>{group.members.length} คน</p>
                       </div>
                       <div style={{
                         width: '18px', height: '18px', borderRadius: '50%', flexShrink: 0,
