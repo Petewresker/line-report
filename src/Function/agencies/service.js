@@ -5,12 +5,11 @@ import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { randomUUID } from "crypto";
 
 const client = new DynamoDBClient({
-  region: "ap-southeast-1",
-  endpoint: "http://host.docker.internal:8000",
-  credentials: {
-    accessKeyId: "local",
-    secretAccessKey: "local"
-  }
+  region: process.env.AWS_REGION ?? "us-east-1",
+  ...(process.env.DYNAMODB_ENDPOINT ? {
+    endpoint: process.env.DYNAMODB_ENDPOINT,
+    credentials: { accessKeyId: "local", secretAccessKey: "local" }
+  } : {})
 });
 
 const dynamoDB = DynamoDBDocumentClient.from(client);
@@ -20,7 +19,7 @@ const s3Client = new S3Client({
   responseChecksumValidation: "WHEN_REQUIRED"
 });
 
-const TABLE_NAME = "IncidentReports-local";
+const TABLE_NAME = process.env.TABLE_TABLE_NAME ?? "IncidentReports-local";
 
 // สร้าง Presigned URL สำหรับอัปโหลดรูปภาพของ Agency
 export async function getAgencyPresignedUrlService(filename, contentType) {
