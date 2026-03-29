@@ -7,6 +7,10 @@ Resources:
         - ${ResourceName} From Stack ${AWS::StackName}
         - ResourceName: Api
       StageName: Prod
+      Cors:
+        AllowMethods: "'GET,POST,PUT,DELETE,OPTIONS'"
+        AllowHeaders: "'Content-Type,Authorization,userid,agencyid,role'"
+        AllowOrigin: "'*'"
       DefinitionBody:
         openapi: '3.0'
         info: {}
@@ -74,6 +78,26 @@ Resources:
               responses: {}
           /agencies/{agencyId}/cases:
             get:
+              x-amazon-apigateway-integration:
+                httpMethod: POST
+                type: aws_proxy
+                uri: !Sub arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${agencies.Arn}/invocations
+              responses: {}
+          /agencies:
+            get:
+              x-amazon-apigateway-integration:
+                httpMethod: POST
+                type: aws_proxy
+                uri: !Sub arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${agencies.Arn}/invocations
+              responses: {}
+            post:
+              x-amazon-apigateway-integration:
+                httpMethod: POST
+                type: aws_proxy
+                uri: !Sub arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${agencies.Arn}/invocations
+              responses: {}
+          /agencies/presign:
+            post:
               x-amazon-apigateway-integration:
                 httpMethod: POST
                 type: aws_proxy
@@ -213,6 +237,24 @@ Resources:
           Properties:
             Path: /agencies/{agencyId}/cases
             Method: GET
+            RestApiId: !Ref Api
+        ApiGETagencies:
+          Type: Api
+          Properties:
+            Path: /agencies
+            Method: GET
+            RestApiId: !Ref Api
+        ApiPOSTagencies:
+          Type: Api
+          Properties:
+            Path: /agencies
+            Method: POST
+            RestApiId: !Ref Api
+        ApiPOSTagenciesPresign:
+          Type: Api
+          Properties:
+            Path: /agencies/presign
+            Method: POST
             RestApiId: !Ref Api
   agenciesLogGroup:
     Type: AWS::Logs::LogGroup
