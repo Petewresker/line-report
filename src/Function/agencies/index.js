@@ -1,7 +1,17 @@
 import { handleGetCaseById, handleGetCasesByAgencyId, handleRegistration, handleGetPresignUrl, handleGetAllAgencies } from "./handler.js";
 
+const CORS_HEADERS = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "Content-Type,Authorization,userid,agencyid,role",
+  "Access-Control-Allow-Methods": "GET,POST,PUT,DELETE,OPTIONS",
+};
+
 export const handler = async (event) => {
   const { httpMethod, resource } = event;
+
+  if (httpMethod === "OPTIONS") {
+    return { statusCode: 200, headers: CORS_HEADERS, body: "" };
+  }
 
   if (httpMethod === "GET" && resource === "/agencies/{agencyId}/cases") {
     return await handleGetCasesByAgencyId(event);
