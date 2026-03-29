@@ -1,5 +1,5 @@
 // admin/index.js
-import { assignReport } from './handler.js'
+import { assignReport, handleCreateAdmin, handleGetMyAdmin } from './handler.js'
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
@@ -11,9 +11,22 @@ export const handler = async (event) => {
   try {
     const { httpMethod, path, pathParameters } = event
 
+    if (httpMethod === 'POST' && path === '/admin/users') {
+      return handleCreateAdmin(event)
+    }
+
+    if (httpMethod === 'GET' && path === '/admin/me') {
+      return handleGetMyAdmin(event)
+    }
+
+    if (httpMethod === 'POST' && path.match(/^\/admin\/cases\/[^/]+\/assign$/)) {
+      const { caseId } = pathParameters || {}
+      return assignReport({ ...event, caseId })
+    }
+
     if (httpMethod === 'POST' && path.includes('/admin/cases') && path.includes('/agencies')) {
-      const { caseId, agencyId } = pathParameters || {}
-      return assignReport({ ...event, caseId, agencyId })
+      const { caseId } = pathParameters || {}
+      return assignReport({ ...event, caseId })
     }
 
     return {

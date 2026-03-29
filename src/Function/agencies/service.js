@@ -48,14 +48,25 @@ export async function getCaseById(_agencyId, caseId) {
   return result.Item;
 }
 
-// ดึงทุกเคสที่ assign ให้ agency นี้ (scan by AssignedAgencyID)
+// ดึงทุกเคสที่ assign ให้หน่วยงานนี้ (scan by AssignedAgencyName)
 export async function getCasesByAgencyId(agencyId) {
+  // look up agency record เพื่อเอา AgencyName
+  const agencyRes = await dynamoDB.send(
+    new ScanCommand({
+      TableName: TABLE_NAME,
+      FilterExpression: "AgencyID = :id AND begins_with(PK, :prefix)",
+      ExpressionAttributeValues: { ":id": agencyId, ":prefix": "AGENCY#" }
+    })
+  )
+  const agencyItem = agencyRes.Items?.[0]
+  if (!agencyItem) return []
+
   const result = await dynamoDB.send(
     new ScanCommand({
       TableName: TABLE_NAME,
-      FilterExpression: "AssignedAgencyID = :agencyId AND begins_with(PK, :prefix)",
+      FilterExpression: "AssignedAgencyName = :name AND begins_with(PK, :prefix)",
       ExpressionAttributeValues: {
-        ":agencyId": agencyId,
+        ":name": agencyItem.AgencyName,
         ":prefix": "CASE#"
       }
     })
@@ -217,15 +228,12 @@ export const acceptCaseService = async (caseId, userId) => {
     return { success: false, message: "Agency not found for this user" };
   }
 
-  // AgencyID คือ UUID ที่เก็บใน field AgencyID (ไม่ใช่ PK ที่มี prefix AGENCY#)
-  const agencyId = agencyItem.AgencyID;
-
-  if (!Item.AssignedAgencyID) {
+  if (!Item.AssignedAgencyName) {
     return { success: false, message: "This case has not been assigned to any agency" };
   }
 
-  if (Item.AssignedAgencyID !== agencyId) {
-    return { success: false, message: "You are not assigned to this case" };
+  if (Item.AssignedAgencyName !== agencyItem.AgencyName) {
+    return { success: false, message: "Your agency is not assigned to this case" };
   }
 
   if (Item.status !== "FORWARD") {
@@ -235,10 +243,11 @@ export const acceptCaseService = async (caseId, userId) => {
   await dynamoDB.send(new UpdateCommand({
     TableName: TABLE_NAME,
     Key: { PK, SK },
-    UpdateExpression: "SET #status = :status, AcceptedAt = :now",
+    UpdateExpression: "SET #status = :status, AssignedAgencyID = :agencyId, AcceptedAt = :now",
     ExpressionAttributeNames: { "#status": "status" },
     ExpressionAttributeValues: {
       ":status": "IN_PROGRESS",
+      ":agencyId": agencyItem.AgencyID,  // บันทึกว่าใครในกลุ่มเป็นคนรับ
       ":now": new Date().toISOString()
     }
   }));
