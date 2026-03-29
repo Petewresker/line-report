@@ -173,6 +173,21 @@ export async function registrationService(regisInformation) {
   return item;
 }
 
+// ดึง Agency จาก userId
+export async function getAgencyByUserId(userId) {
+  const result = await dynamoDB.send(
+    new ScanCommand({
+      TableName: TABLE_NAME,
+      FilterExpression: "UserID = :uid AND begins_with(PK, :prefix)",
+      ExpressionAttributeValues: {
+        ":uid": userId,
+        ":prefix": "AGENCY#"
+      }
+    })
+  );
+  return result.Items?.[0] ?? null;
+}
+
 // รับงาน: เปลี่ยนสถานะเป็น IN_PROGRESS
 export const acceptCaseService = async (caseId, userId) => {
   const PK = `CASE#${caseId}`;

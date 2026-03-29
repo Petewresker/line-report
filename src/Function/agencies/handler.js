@@ -7,7 +7,8 @@ import {
   deleteAgencyService,
   approveAgencyService,
   acceptCaseService,
-  completeCaseService
+  completeCaseService,
+  getAgencyByUserId
 } from "./service.js";
 
 const CORS_HEADERS = {
@@ -133,6 +134,25 @@ export async function handleApproveAgency(event) {
   try {
     const result = await approveAgencyService(agencyId);
     return withCors({ statusCode: 200, body: JSON.stringify({ message: "Agency approved", agency: result }) });
+  } catch (error) {
+    return withCors({ statusCode: 500, body: JSON.stringify({ message: error.message }) });
+  }
+}
+
+export async function handleGetMyAgency(event) {
+  const headers = normalizeHeaders(event.headers || {});
+  const userId = headers["userid"] || headers["user-id"];
+
+  if (!userId) {
+    return withCors({ statusCode: 400, body: JSON.stringify({ message: "Missing userId" }) });
+  }
+
+  try {
+    const agency = await getAgencyByUserId(userId);
+    if (!agency) {
+      return withCors({ statusCode: 404, body: JSON.stringify({ message: "Agency not found" }) });
+    }
+    return withCors({ statusCode: 200, body: JSON.stringify({ agencyId: agency.AgencyID, status: agency.Status }) });
   } catch (error) {
     return withCors({ statusCode: 500, body: JSON.stringify({ message: error.message }) });
   }
