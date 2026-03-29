@@ -1,100 +1,187 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { Search, Calendar, Clock, MapPin, ExternalLink, AlertCircle, AlertTriangle, Eye } from 'lucide-react'
+import liff from '@line/liff'
 import Navbar from '../components/Navbar'
 import Sidebar from '../components/Sidebar'
 
 const filterTabs = ['ทั้งหมด', 'รอดำเนินการ', 'กำลังดำเนินการ', 'เสร็จสิ้น']
 
-const mockCases = [
-  {
-    caseId: 'AG-0001',
-    title: 'โน้ตบุ๊คบริเวณตึกโดมบริหารไฟไหม้',
-    description: 'ทำงานอยู่บริเวณbs.2 เห็นโน้ตบุ๊คของตึกโดมบริหารเท้าๆ ไฟไหม้นะคะ ที่มหาวิทยาลัยธรรมศาสตร์',
-    status: 'รอดำเนินการ',
-    createdAt: '20/02/2569',
-    time: '16:20',
-    location: 'มหาวิทยาลัยธรรมศาสตร์ รังสิต 760001',
-    lat: 14.0707,
-    lng: 100.6056,
-    images: ['/fire1.jpg', '/fire2.jpg', '/fire3.jpg'],
-    reportCount: 12,
-  },
-  {
-    caseId: 'AG-0002',
-    title: 'โน้ตบุ๊คบริเวณตึกโดมบริหารไฟไหม้',
-    description: 'ทำงานอยู่บริเวณbs.2 เห็นโน้ตบุ๊คของตึกโดมบริหารเท้าๆ ไฟไหม้นะคะ ที่มหาวิทยาลัยธรรมศาสตร์',
-    status: 'กำลังดำเนินการ',
-    createdAt: '20/02/2569',
-    time: '16:20',
-    location: 'มหาวิทยาลัยธรรมศาสตร์ รังสิต 760001',
-    lat: 14.0707,
-    lng: 100.6056,
-    images: ['/fire1.jpg'],
-    reportCount: 5,
-  },
-  {
-    caseId: 'AG-0003',
-    title: 'โน้ตบุ๊คบริเวณตึกโดมบริหารไฟไหม้',
-    description: 'ทำงานอยู่บริเวณbs.2 เห็นโน้ตบุ๊คของตึกโดมบริหารเท้าๆ ไฟไหม้นะคะ ที่มหาวิทยาลัยธรรมศาสตร์',
-    status: 'เสร็จสิ้น',
-    createdAt: '20/02/2569',
-    time: '16:20',
-    location: 'มหาวิทยาลัยธรรมศาสตร์ รังสิต 760001',
-    lat: 14.0707,
-    lng: 100.6056,
-    images: ['/fire1.jpg', '/fire2.jpg'],
-    reportCount: 3,
-  },
-  {
-    caseId: 'AG-0004',
-    title: 'โน้ตบุ๊คบริเวณตึกโดมบริหารไฟไหม้',
-    description: 'ทำงานอยู่บริเวณbs.2 เห็นโน้ตบุ๊คของตึกโดมบริหารเท้าๆ ไฟไหม้นะคะ ที่มหาวิทยาลัยธรรมศาสตร์',
-    status: 'รอดำเนินการ',
-    createdAt: '20/02/2569',
-    time: '16:20',
-    location: 'มหาวิทยาลัยธรรมศาสตร์ รังสิต 760001',
-    lat: 14.0707,
-    lng: 100.6056,
-    images: ['/fire1.jpg'],
-    reportCount: 2,
-  },
-]
-
-const getReportIndicator = (count) => {
-  if (count > 10) return { Icon: AlertCircle, color: '#EF4444', bg: '#FEE2E2', label: count }
-  if (count >= 5)  return { Icon: AlertTriangle, color: '#F59E0B', bg: '#FEF3C7', label: count }
-  return            { Icon: Eye, color: '#3B82F6', bg: '#DBEAFE', label: count }
+const FILTER_TO_STATUS = {
+  'รอดำเนินการ': 'PENDING',
+  'กำลังดำเนินการ': 'IN_PROGRESS',
+  'เสร็จสิ้น': 'FINISHED',
 }
 
-const stats = [
-  { label: 'Total', value: mockCases.length, labelColor: '#111' },
-  { label: 'Forwarded', value: mockCases.filter(c => c.status === 'รอดำเนินการ').length, labelColor: '#F59E0B' },
-  { label: 'In progress', value: mockCases.filter(c => c.status === 'กำลังดำเนินการ').length, labelColor: '#3B82F6' },
-  { label: 'Success', value: mockCases.filter(c => c.status === 'เสร็จสิ้น').length, labelColor: '#10B981' },
-]
+const RADIUS_M = 500
 
-const statusStyle = {
-  'รอดำเนินการ': { bg: '#FEF3C7', text: '#92400E', label: 'รอ' },
-  'กำลังดำเนินการ': { bg: '#DBEAFE', text: '#1E40AF', label: 'กำลัง' },
-  'เสร็จสิ้น': { bg: '#D1FAE5', text: '#065F46', label: 'เสร็จ' },
+function haversine(lat1, lon1, lat2, lon2) {
+  const R = 6371000
+  const dLat = (lat2 - lat1) * Math.PI / 180
+  const dLon = (lon2 - lon1) * Math.PI / 180
+  const a = Math.sin(dLat / 2) ** 2
+    + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon / 2) ** 2
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+}
+
+const formatDate = (iso) => {
+  if (!iso) return '-'
+  const d = new Date(iso)
+  return `${d.getDate().toString().padStart(2, '0')}/${(d.getMonth() + 1).toString().padStart(2, '0')}/${d.getFullYear()}`
+}
+
+const formatTime = (iso) => {
+  if (!iso) return '-'
+  const d = new Date(iso)
+  return `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`
+}
+
+
+const getReportIndicator = (count) => {
+  if (count > 10) return { Icon: AlertCircle,  color: '#EF4444', bg: '#FEE2E2', label: count }
+  if (count >= 5)  return { Icon: AlertTriangle, color: '#F59E0B', bg: '#FEF3C7', label: count }
+  return            { Icon: Eye,           color: '#3B82F6', bg: '#DBEAFE', label: count }
+}
+
+const STATUS_MAP = {
+  PENDING:     { bg: '#FEF3C7', text: '#92400E', label: 'รอดำเนินการ' },
+  FORWARD:     { bg: '#EDE9FE', text: '#6D28D9', label: 'กำลังส่งมอบ' },
+  IN_PROGRESS: { bg: '#DBEAFE', text: '#1E40AF', label: 'กำลังดำเนินการ' },
+  FINISHED:    { bg: '#D1FAE5', text: '#065F46', label: 'เสร็จสิ้น' },
 }
 
 export default function AdminDashboard() {
+  const [liffReady, setLiffReady] = useState(false)
+  const [liffError, setLiffError] = useState(null)
+  const [profile, setProfile] = useState(null)
+
   const [activeFilter, setActiveFilter] = useState('ทั้งหมด')
   const [searchQuery, setSearchQuery] = useState('')
-  const [selected, setSelected] = useState(mockCases[0])
+  const [cases, setCases] = useState([])
+  const [selected, setSelected] = useState(null)
+  const [showModal, setShowModal] = useState(false)
+  const [agencies, setAgencies] = useState([])
+  const [selectedAgency, setSelectedAgency] = useState(null)
+  const [loadingAgencies, setLoadingAgencies] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
+  const [groupCursors, setGroupCursors] = useState({})
 
-  const filtered = mockCases.filter((c) => {
-    const matchStatus = activeFilter === 'ทั้งหมด' || c.status === activeFilter
-    const matchSearch = c.title.includes(searchQuery) || c.caseId.includes(searchQuery)
+  // ── LIFF Init ──────────────────────────────────────────────────────────────
+  useEffect(() => {
+    const initLiff = async () => {
+      try {
+        await liff.init({ liffId: process.env.NEXT_PUBLIC_LIFF_ID_PROBLEM_SEEKER })
+        if (!liff.isLoggedIn()) { liff.login(); return }
+        const userProfile = await liff.getProfile()
+        setProfile(userProfile)
+        setLiffReady(true)
+      } catch (err) {
+        setLiffError(err?.message ?? String(err))
+      }
+    }
+    initLiff()
+  }, [])
+
+  useEffect(() => {
+    if (!liffReady) return
+    fetch(`${process.env.NEXT_PUBLIC_API_URL}/cases?admin=true`)
+      .then((r) => r.json())
+      .then((data) => {
+        const items = Array.isArray(data) ? data : []
+        setCases(items)
+        if (items.length > 0) setSelected(items[0])
+      })
+      .catch(console.error)
+  }, [liffReady])
+
+  // หา caseIds ทั้งหมดที่เป็น duplicate ของ case ที่เลือก (title เดียวกัน + อยู่ใน radius)
+  const getRelatedCaseIds = (item) =>
+    cases
+      .filter(c => c.title === item.title && haversine(item.lat, item.lon, c.lat, c.lon) <= RADIUS_M)
+      .map(c => c.caseId)
+
+  const openModal = () => {
+    setSelectedAgency(null)
+    setShowModal(true)
+    setLoadingAgencies(true)
+    fetch(`${process.env.NEXT_PUBLIC_API_URL}/agencies`)
+      .then(r => r.json())
+      .then(data => setAgencies(Array.isArray(data.agencies) ? data.agencies.filter(a => a.Status === 'ACTIVE') : []))
+      .catch(console.error)
+      .finally(() => setLoadingAgencies(false))
+  }
+
+  const handleSubmit = async () => {
+    if (!selectedAgency || !selected) return
+    setSubmitting(true)
+    try {
+      const caseIds = getRelatedCaseIds(selected)
+      await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/cases/${selected.caseId}/agencies/${selectedAgency.AgencyID}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ caseIds }),
+      })
+      setCases(prev => prev.map(c => caseIds.includes(c.caseId) ? { ...c, status: 'FORWARD' } : c))
+      setSelected(prev => prev ? { ...prev, status: 'FORWARD' } : prev)
+      setShowModal(false)
+    } catch (err) {
+      console.error(err)
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  if (liffError) {
+    return (
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f5f5f5' }}>
+        <div style={{ background: '#fff', borderRadius: '12px', padding: '2rem', maxWidth: '400px', textAlign: 'center', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
+          <p style={{ color: '#EF4444', fontWeight: '600', marginBottom: '0.5rem' }}>LIFF Error</p>
+          <p style={{ color: '#888', fontSize: '0.875rem' }}>{liffError}</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (!liffReady) {
+    return (
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f5f5f5' }}>
+        <p style={{ color: '#aaa', fontSize: '0.9rem' }}>กำลังโหลด...</p>
+      </div>
+    )
+  }
+
+  const stats = [
+    { label: 'Total',       value: cases.length,                                           labelColor: '#111' },
+    { label: 'Pending',     value: cases.filter(c => c.status === 'PENDING').length,       labelColor: '#F59E0B' },
+    { label: 'In progress', value: cases.filter(c => c.status === 'IN_PROGRESS').length,   labelColor: '#3B82F6' },
+    { label: 'Success',     value: cases.filter(c => c.status === 'FINISHED').length,      labelColor: '#10B981' },
+  ]
+
+  const filtered = useMemo(() => cases.filter((c) => {
+    const statusFilter = FILTER_TO_STATUS[activeFilter]
+    const matchStatus = !statusFilter || c.status === statusFilter
+    const matchSearch = c.title?.includes(searchQuery) || c.caseId?.includes(searchQuery)
     return matchStatus && matchSearch
-  })
+  }), [cases, activeFilter, searchQuery])
+
+  const groups = useMemo(() => {
+    const assigned = new Set()
+    const result = []
+    for (const item of filtered) {
+      if (assigned.has(item.caseId)) continue
+      const group = filtered.filter(c =>
+        c.title === item.title && haversine(item.lat, item.lon, c.lat, c.lon) <= RADIUS_M
+      )
+      group.forEach(c => assigned.add(c.caseId))
+      result.push(group)
+    }
+    return result
+  }, [filtered])
 
   return (
     <div style={{ minHeight: '100vh', background: '#f5f5f5', display: 'flex', flexDirection: 'column' }}>
-      <Navbar accountName="Johny Eve" />
+      <Navbar accountName={profile?.displayName ?? 'Admin'} />
       <div style={{ display: 'flex', flex: 1 }}>
         <Sidebar />
         <main style={{ flex: 1, padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem', overflow: 'hidden' }}>
@@ -145,19 +232,33 @@ export default function AdminDashboard() {
             </div>
           </div>
 
+          <style>{`
+            .left-scroll::-webkit-scrollbar { width: 6px; }
+            .left-scroll::-webkit-scrollbar-track { background: #f5f5f5; border-radius: 8px; }
+            .left-scroll::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 8px; }
+            .left-scroll::-webkit-scrollbar-thumb:hover { background: #9ca3af; }
+          `}</style>
+
           {/* Two-panel */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', flex: 1, minHeight: 0 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', flex: 1, minHeight: 0, alignItems: 'start' }}>
 
             {/* Left — List */}
-            <div style={{
+            <div className="left-scroll" style={{
               background: '#fff', borderRadius: '12px', boxShadow: '0 1px 3px rgba(0,0,0,0.07)',
-              overflow: 'auto', display: 'flex', flexDirection: 'column',
+              overflowY: 'auto', display: 'flex', flexDirection: 'column', maxHeight: '72vh',
             }}>
-              {filtered.map((item) => {
-                const s = statusStyle[item.status]
-                const isSelected = selected?.caseId === item.caseId
+              {groups.map((group) => {
+                const groupKey = group[0].caseId
+                const cursor = Math.min(groupCursors[groupKey] ?? 0, group.length - 1)
+                const item = group[cursor]
+                const s = STATUS_MAP[item.status] ?? { bg: '#f0f0f0', text: '#555', label: item.status }
+                const isSelected = group.some(c => c.caseId === selected?.caseId)
+                const count = cases.filter(c =>
+                  c.title === item.title && haversine(item.lat, item.lon, c.lat, c.lon) <= RADIUS_M
+                ).length
+                const { Icon, color, bg, label } = getReportIndicator(count)
                 return (
-                  <div key={item.caseId} onClick={() => setSelected(item)}
+                  <div key={groupKey} onClick={() => setSelected(item)}
                     style={{
                       display: 'flex', gap: '0.85rem', padding: '1rem 1.25rem', cursor: 'pointer',
                       borderBottom: '1px solid #f0f0f0', transition: 'background 0.15s',
@@ -172,7 +273,7 @@ export default function AdminDashboard() {
                       width: '90px', height: '65px', borderRadius: '8px', flexShrink: 0,
                       background: '#f0f0f0', overflow: 'hidden',
                     }}>
-                      <img src={item.images[0]} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                      <img src={item.imageUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                         onError={(e) => { e.target.style.display = 'none' }} />
                     </div>
 
@@ -186,7 +287,7 @@ export default function AdminDashboard() {
                           <p style={{ fontSize: '0.75rem', color: '#999' }}>{item.caseId}</p>
                         </div>
                         <span style={{ fontSize: '0.7rem', padding: '0.2rem 0.55rem', borderRadius: '20px', background: s.bg, color: s.text, whiteSpace: 'nowrap', marginLeft: '0.5rem', flexShrink: 0 }}>
-                          {item.status}
+                          {s.label}
                         </span>
                       </div>
                       <p style={{ fontSize: '0.78rem', color: '#777', lineHeight: '1.4', overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', marginBottom: '0.4rem' }}>
@@ -194,20 +295,15 @@ export default function AdminDashboard() {
                       </p>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', fontSize: '0.72rem', color: '#aaa' }}>
                         <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                          <Calendar size={11} /> {item.createdAt}
+                          <Calendar size={11} /> {formatDate(item.createdAt)}
                         </span>
                         <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                          <Clock size={11} /> {item.time}
+                          <Clock size={11} /> {formatTime(item.createdAt)}
                         </span>
-                        {(() => {
-                          const { Icon, color, bg, label } = getReportIndicator(item.reportCount ?? 0)
-                          return (
-                            <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '0.3rem', padding: '0.15rem 0.5rem', borderRadius: '20px', background: bg, color, fontWeight: '600', fontSize: '0.72rem' }}>
-                              <Icon size={12} />
-                              {label} คน
-                            </span>
-                          )
-                        })()}
+                        <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '0.3rem', padding: '0.15rem 0.5rem', borderRadius: '20px', background: bg, color, fontWeight: '600', fontSize: '0.72rem' }}>
+                          <Icon size={12} />
+                          {label} คน
+                        </span>
                       </div>
                     </div>
                   </div>
@@ -218,28 +314,61 @@ export default function AdminDashboard() {
             {/* Right — Detail */}
             <div style={{
               background: '#fff', borderRadius: '12px', boxShadow: '0 1px 3px rgba(0,0,0,0.07)',
-              overflow: 'auto', padding: '1.5rem',
+              padding: '1.5rem', alignSelf: 'start',
             }}>
               {selected ? (
                 <>
                   {/* Header */}
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.25rem' }}>
                     <h2 style={{ fontSize: '1.1rem', fontWeight: '700', color: '#111', flex: 1 }}>{selected.title}</h2>
-                    <span style={{ fontSize: '0.75rem', padding: '0.25rem 0.65rem', borderRadius: '20px', background: statusStyle[selected.status].bg, color: statusStyle[selected.status].text, whiteSpace: 'nowrap', marginLeft: '0.75rem', flexShrink: 0 }}>
-                      {selected.status}
-                    </span>
+                    {(() => {
+                      const ss = STATUS_MAP[selected.status] ?? { bg: '#f0f0f0', text: '#555', label: selected.status }
+                      return (
+                        <span style={{ fontSize: '0.75rem', padding: '0.25rem 0.65rem', borderRadius: '20px', background: ss.bg, color: ss.text, whiteSpace: 'nowrap', marginLeft: '0.75rem', flexShrink: 0 }}>
+                          {ss.label}
+                        </span>
+                      )
+                    })()}
                   </div>
-                  <p style={{ fontSize: '0.8rem', color: '#999', marginBottom: '1.25rem' }}>{selected.caseId}</p>
+                  <p style={{ fontSize: '0.8rem', color: '#999', marginBottom: '0.75rem' }}>{selected.caseId}</p>
+
+                  {/* Group navigation */}
+                  {(() => {
+                    const grp = groups.find(g => g.some(c => c.caseId === selected.caseId))
+                    if (!grp || grp.length <= 1) return null
+                    const grpKey = grp[0].caseId
+                    const idx = grp.findIndex(c => c.caseId === selected.caseId)
+                    const go = (dir) => {
+                      const next = (idx + dir + grp.length) % grp.length
+                      setGroupCursors(prev => ({ ...prev, [grpKey]: next }))
+                      setSelected(grp[next])
+                    }
+                    return (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1.25rem' }}>
+                        <button onClick={() => go(-1)} style={{
+                          width: '28px', height: '28px', borderRadius: '50%', border: '1px solid #d1d5db',
+                          background: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center',
+                          justifyContent: 'center', color: '#555', fontSize: '1rem', padding: 0, flexShrink: 0,
+                        }}>‹</button>
+                        <span style={{ fontSize: '0.8rem', color: '#888' }}>{idx + 1} / {grp.length} เคส</span>
+                        <button onClick={() => go(1)} style={{
+                          width: '28px', height: '28px', borderRadius: '50%', border: '1px solid #d1d5db',
+                          background: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center',
+                          justifyContent: 'center', color: '#555', fontSize: '1rem', padding: 0, flexShrink: 0,
+                        }}>›</button>
+                      </div>
+                    )
+                  })()}
 
                   {/* Images */}
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.5rem', marginBottom: '1.5rem' }}>
-                    {selected.images.map((src, idx) => (
-                      <div key={idx} style={{ borderRadius: '8px', overflow: 'hidden', aspectRatio: '16/9', background: '#f0f0f0' }}>
-                        <img src={src} alt={`img-${idx}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                  {selected.imageUrl && (
+                    <div style={{ marginBottom: '1.5rem' }}>
+                      <div style={{ borderRadius: '8px', overflow: 'hidden', aspectRatio: '16/9', background: '#f0f0f0' }}>
+                        <img src={selected.imageUrl} alt="case" style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                           onError={(e) => { e.target.style.display = 'none' }} />
                       </div>
-                    ))}
-                  </div>
+                    </div>
+                  )}
 
                   {/* Description */}
                   <div style={{ marginBottom: '1.25rem' }}>
@@ -252,9 +381,9 @@ export default function AdminDashboard() {
                     <h3 style={{ fontSize: '0.9rem', fontWeight: '600', marginBottom: '0.4rem' }}>ตำแหน่ง</h3>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.85rem', color: '#555' }}>
                       <MapPin size={14} />
-                      <span>{selected.location}</span>
+                      <span>{selected.lat}, {selected.lon}</span>
                       <a
-                        href={`https://www.google.com/maps?q=${selected.lat},${selected.lng}`}
+                        href={`https://www.google.com/maps?q=${selected.lat},${selected.lon}`}
                         target="_blank"
                         rel="noopener noreferrer"
                         style={{ marginLeft: '0.25rem', color: '#3B82F6' }}
@@ -269,16 +398,16 @@ export default function AdminDashboard() {
                     <h3 style={{ fontSize: '0.9rem', fontWeight: '600', marginBottom: '0.4rem' }}>ข้อมูลรายงาน</h3>
                     <div style={{ display: 'flex', gap: '1.5rem', fontSize: '0.85rem', color: '#555' }}>
                       <span style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                        <Calendar size={14} /> วันที่ {selected.createdAt}
+                        <Calendar size={14} /> วันที่ {formatDate(selected.createdAt)}
                       </span>
                       <span style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                        <Clock size={14} /> {selected.time}
+                        <Clock size={14} /> {formatTime(selected.createdAt)}
                       </span>
                     </div>
                   </div>
 
                   {/* Action */}
-                  <button style={{
+                  <button onClick={openModal} style={{
                     width: '100%', padding: '0.75rem', borderRadius: '10px', border: 'none',
                     background: '#10B981', color: '#fff', fontSize: '0.95rem', fontWeight: '600',
                     cursor: 'pointer', transition: 'background 0.2s',
@@ -286,7 +415,7 @@ export default function AdminDashboard() {
                     onMouseEnter={(e) => e.currentTarget.style.background = '#059669'}
                     onMouseLeave={(e) => e.currentTarget.style.background = '#10B981'}
                   >
-                    ส่งข้อมูล
+                    ส่งข้อมูล ({selected ? getRelatedCaseIds(selected).length : 0} เคส)
                   </button>
                 </>
               ) : (
@@ -299,6 +428,78 @@ export default function AdminDashboard() {
           </div>
         </main>
       </div>
+
+      {showModal && (
+        <div style={{
+          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000,
+        }} onClick={(e) => { if (e.target === e.currentTarget) setShowModal(false) }}>
+          <div style={{
+            background: '#fff', borderRadius: '16px', padding: '1.75rem',
+            width: '480px', maxWidth: '90vw', boxShadow: '0 8px 32px rgba(0,0,0,0.18)',
+          }}>
+            <h2 style={{ fontSize: '1.1rem', fontWeight: '700', color: '#111', marginBottom: '0.25rem' }}>เลือกหน่วยงาน</h2>
+            <p style={{ fontSize: '0.8rem', color: '#999', marginBottom: '1.25rem' }}>
+              ส่ง <b style={{ color: '#111' }}>{selected ? getRelatedCaseIds(selected).length : 0} เคส</b> ที่เกี่ยวข้องกับ "{selected?.title}"
+            </p>
+
+            {loadingAgencies ? (
+              <div style={{ textAlign: 'center', padding: '2rem', color: '#aaa', fontSize: '0.875rem' }}>กำลังโหลด...</div>
+            ) : agencies.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '2rem', color: '#aaa', fontSize: '0.875rem' }}>ไม่มีหน่วยงานที่พร้อมรับงาน</div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', maxHeight: '320px', overflowY: 'auto', marginBottom: '1.25rem' }}>
+                {agencies.map((agency) => {
+                  const isChosen = selectedAgency?.AgencyID === agency.AgencyID
+                  return (
+                    <div key={agency.AgencyID} onClick={() => setSelectedAgency(agency)} style={{
+                      display: 'flex', alignItems: 'center', gap: '0.85rem',
+                      padding: '0.75rem 1rem', borderRadius: '10px', cursor: 'pointer',
+                      border: `2px solid ${isChosen ? '#3B82F6' : '#e5e5e5'}`,
+                      background: isChosen ? '#EFF6FF' : '#fff', transition: 'all 0.15s',
+                    }}>
+                      <div style={{ width: '40px', height: '40px', borderRadius: '50%', flexShrink: 0, background: '#f0f0f0', overflow: 'hidden' }}>
+                        {agency.ImageUrl
+                          ? <img src={agency.ImageUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={(e) => { e.target.style.display = 'none' }} />
+                          : <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#aaa' }}>🏢</div>
+                        }
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <p style={{ fontSize: '0.875rem', fontWeight: '600', color: '#111', marginBottom: '0.1rem' }}>{agency.AgencyName}</p>
+                        <p style={{ fontSize: '0.75rem', color: '#999' }}>{agency.Name} {agency.Surname}</p>
+                      </div>
+                      <div style={{
+                        width: '18px', height: '18px', borderRadius: '50%', flexShrink: 0,
+                        border: `2px solid ${isChosen ? '#3B82F6' : '#d1d5db'}`,
+                        background: isChosen ? '#3B82F6' : '#fff',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      }}>
+                        {isChosen && <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#fff' }} />}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+
+            <div style={{ display: 'flex', gap: '0.75rem' }}>
+              <button onClick={() => setShowModal(false)} style={{
+                flex: 1, padding: '0.65rem', borderRadius: '10px',
+                border: '1px solid #e5e5e5', background: '#fff',
+                fontSize: '0.9rem', fontWeight: '500', cursor: 'pointer', color: '#555',
+              }}>ยกเลิก</button>
+              <button onClick={handleSubmit} disabled={!selectedAgency || submitting} style={{
+                flex: 1, padding: '0.65rem', borderRadius: '10px', border: 'none',
+                background: selectedAgency && !submitting ? '#10B981' : '#d1d5db',
+                color: '#fff', fontSize: '0.9rem', fontWeight: '600',
+                cursor: selectedAgency && !submitting ? 'pointer' : 'not-allowed',
+              }}>
+                {submitting ? 'กำลังส่ง...' : 'ยืนยัน'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
