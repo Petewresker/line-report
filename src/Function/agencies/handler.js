@@ -1,4 +1,14 @@
-import { getCaseById, getCasesByAgencyId, registrationService, getAgencyPresignedUrlService, getAllAgenciesService, deleteAgencyService, approveAgencyService ,acceptCaseService } from "./service.js";
+import {
+  getCaseById,
+  getCasesByAgencyId,
+  registrationService,
+  getAgencyPresignedUrlService,
+  getAllAgenciesService,
+  deleteAgencyService,
+  approveAgencyService,
+  acceptCaseService,
+  completeCaseService
+} from "./service.js";
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -25,7 +35,6 @@ function getAuth(event) {
   };
 }
 
-// ของเก่า: ดูทุกเคสของ agency
 export async function handleGetCasesByAgencyId(event) {
   const { agencyId } = event.pathParameters || {};
   const { userId, tokenAgencyId, role } = getAuth(event);
@@ -50,7 +59,6 @@ export async function handleGetCasesByAgencyId(event) {
   }
 }
 
-// ของใหม่: ดูเคสเดียวตาม caseId
 export async function handleGetCaseById(event) {
   const { agencyId, caseId } = event.pathParameters || {};
   const { userId, tokenAgencyId, role } = getAuth(event);
@@ -153,33 +161,53 @@ export async function handleRegistration(event) {
   }
 }
 
+// POST /agencies/cases/{caseId}/accept
 export const acceptCase = async (event) => {
   try {
-    const { caseId } = event
+    const { caseId } = event.pathParameters || {};
+    const body = event.body ? JSON.parse(event.body) : {};
+    const { userId } = body;
 
-    const body = event.body ? JSON.parse(event.body) : {}
-    const { userId } = body
+    if (!caseId) {
+      return withCors({ statusCode: 400, body: JSON.stringify({ message: "caseId is required" }) });
+    }
 
-    //Check ว่ามี userID ไหม
     if (!userId) {
-      return {
-        statusCode: 400,
-        body: JSON.stringify({ message: "userId is required" })
-      }
+      return withCors({ statusCode: 400, body: JSON.stringify({ message: "userId is required" }) });
     }
 
-    const result = await acceptCaseService(caseId, userId)
-    
-    return {
-      statusCode: 200,
-      body: JSON.stringify(result)
+    const result = await acceptCaseService(caseId, userId);
+
+    if (!result.success) {
+      return withCors({ statusCode: 400, body: JSON.stringify({ message: result.message }) });
     }
 
+    return withCors({ statusCode: 200, body: JSON.stringify(result) });
   } catch (err) {
-    console.error(err)
-    return {
-      statusCode: 500,
-      body: JSON.stringify({ message: "Internal Server Error" })
-    }
+    console.error(err);
+    return withCors({ statusCode: 500, body: JSON.stringify({ message: "Internal Server Error" }) });
   }
-}
+};
+
+// POST /agencies/cases/{caseId}/complete
+export const completeCaseHandler = async (event) => {
+  try {
+    const { caseId } = event.pathParameters || {};
+    const body = JSON.parse(event.body || "{}");
+    const { imageKeyAfter, summary } = body;
+
+    if (!caseId) {
+      return withCors({ statusCode: 400, body: JSON.stringify({ message: "caseId is required" }) });
+    }
+
+    if (!imageKeyAfter || !summary) {
+      return withCors({ statusCode: 400, body: JSON.stringify({ message: "imageKeyAfter and summary are required" }) });
+    }
+
+    const result = await completeCaseService(caseId, imageKeyAfter, summary);
+    return withCors({ statusCode: 200, body: JSON.stringify({ message: "Case completed successfully", data: result }) });
+  } catch (err) {
+    console.error(err);
+    return withCors({ statusCode: 500, body: JSON.stringify({ message: "Internal Server Error" }) });
+  }
+};
