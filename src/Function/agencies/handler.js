@@ -1,4 +1,4 @@
-import { getCaseById, getCasesByAgencyId, registrationService, getAgencyPresignedUrlService } from "./service.js";
+import { getCaseById, getCasesByAgencyId, registrationService, getAgencyPresignedUrlService, getAllAgenciesService } from "./service.js";
 
 function normalizeHeaders(headers = {}) {
   return Object.fromEntries(
@@ -104,6 +104,21 @@ export async function handleGetCaseById(event) {
   }
 }
 
+
+export async function handleGetAllAgencies() {
+  try {
+    const agencies = await getAllAgenciesService();
+    return {
+      statusCode: 200,
+      body: JSON.stringify({ agencies })
+    };
+  } catch (error) {
+    return {
+      statusCode: 500,
+      body: JSON.stringify({ message: error.message })
+    };
+  }
+}
 
 export async function handleGetPresignUrl(event) {
   const { filename, contentType } = JSON.parse(event.body || "{}");

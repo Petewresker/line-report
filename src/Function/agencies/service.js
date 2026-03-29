@@ -1,5 +1,5 @@
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
-import { DynamoDBDocumentClient, GetCommand, QueryCommand, PutCommand } from "@aws-sdk/lib-dynamodb";
+import { DynamoDBDocumentClient, GetCommand, QueryCommand, PutCommand, ScanCommand } from "@aws-sdk/lib-dynamodb";
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { randomUUID } from "crypto";
@@ -64,6 +64,21 @@ export async function getCasesByAgencyId(agencyId) {
   return result.Items || [];
 }
 
+
+// ดึง Agency ทั้งหมด
+export async function getAllAgenciesService() {
+  const result = await dynamoDB.send(
+    new ScanCommand({
+      TableName: TABLE_NAME,
+      FilterExpression: "begins_with(PK, :prefix)",
+      ExpressionAttributeValues: {
+        ":prefix": "AGENCY#"
+      }
+    })
+  );
+
+  return result.Items || [];
+}
 
 //Registration ให้ Agency
 export async function registrationService(regisInformation) {

@@ -1,4 +1,4 @@
-import { handleGetCaseById, handleGetCasesByAgencyId, handleRegistration, handleGetPresignUrl } from "./handler.js";
+import { handleGetCaseById, handleGetCasesByAgencyId, handleRegistration, handleGetPresignUrl, handleGetAllAgencies } from "./handler.js";
 
 export const handler = async (event) => {
   const { httpMethod, resource } = event;
@@ -13,6 +13,10 @@ export const handler = async (event) => {
 
   if (httpMethod === "POST" && resource === "/agencies/presign") {
     return await handleGetPresignUrl(event);
+  }
+
+  if (httpMethod === "GET" && resource === "/agencies") {
+    return await handleGetAllAgencies();
   }
 
   if (httpMethod === 'POST' && resource ==="/agencies"){
