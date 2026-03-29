@@ -12,7 +12,8 @@ export async function pushLine(userId, messages) {
   });
 
   if (!response.ok) {
-    throw new Error(`LINE push failed: ${response.status} ${response.statusText}`);
+    const errBody = await response.text()
+    throw new Error(`LINE push failed: ${response.status} ${response.statusText} — ${errBody}`);
   }
 }
 

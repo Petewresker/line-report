@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { Search, Calendar, Clock, MapPin, ExternalLink, AlertCircle, AlertTriangle, Eye } from 'lucide-react'
 import Navbar from '../components/Navbar'
 import Sidebar from '../components/Sidebar'
@@ -60,6 +60,7 @@ export default function AdminDashboard() {
   const [selectedAgency, setSelectedAgency] = useState(null)
   const [loadingAgencies, setLoadingAgencies] = useState(false)
   const [submitting, setSubmitting] = useState(false)
+  const [groupCursors, setGroupCursors] = useState({})
 
   useEffect(() => {
     fetch(`${process.env.NEXT_PUBLIC_API_URL}/cases?admin=true`)
@@ -116,12 +117,26 @@ export default function AdminDashboard() {
     { label: 'Success',     value: cases.filter(c => c.status === 'FINISHED').length,      labelColor: '#10B981' },
   ]
 
-  const filtered = cases.filter((c) => {
+  const filtered = useMemo(() => cases.filter((c) => {
     const statusFilter = FILTER_TO_STATUS[activeFilter]
     const matchStatus = !statusFilter || c.status === statusFilter
     const matchSearch = c.title?.includes(searchQuery) || c.caseId?.includes(searchQuery)
     return matchStatus && matchSearch
-  })
+  }), [cases, activeFilter, searchQuery])
+
+  const groups = useMemo(() => {
+    const assigned = new Set()
+    const result = []
+    for (const item of filtered) {
+      if (assigned.has(item.caseId)) continue
+      const group = filtered.filter(c =>
+        c.title === item.title && haversine(item.lat, item.lon, c.lat, c.lon) <= RADIUS_M
+      )
+      group.forEach(c => assigned.add(c.caseId))
+      result.push(group)
+    }
+    return result
+  }, [filtered])
 
   return (
     <div style={{ minHeight: '100vh', background: '#f5f5f5', display: 'flex', flexDirection: 'column' }}>
@@ -191,11 +206,18 @@ export default function AdminDashboard() {
               background: '#fff', borderRadius: '12px', boxShadow: '0 1px 3px rgba(0,0,0,0.07)',
               overflowY: 'auto', display: 'flex', flexDirection: 'column', maxHeight: '72vh',
             }}>
-              {filtered.map((item) => {
+              {groups.map((group) => {
+                const groupKey = group[0].caseId
+                const cursor = Math.min(groupCursors[groupKey] ?? 0, group.length - 1)
+                const item = group[cursor]
                 const s = STATUS_MAP[item.status] ?? { bg: '#f0f0f0', text: '#555', label: item.status }
-                const isSelected = selected?.caseId === item.caseId
+                const isSelected = group.some(c => c.caseId === selected?.caseId)
+                const count = cases.filter(c =>
+                  c.title === item.title && haversine(item.lat, item.lon, c.lat, c.lon) <= RADIUS_M
+                ).length
+                const { Icon, color, bg, label } = getReportIndicator(count)
                 return (
-                  <div key={item.caseId} onClick={() => setSelected(item)}
+                  <div key={groupKey} onClick={() => setSelected(item)}
                     style={{
                       display: 'flex', gap: '0.85rem', padding: '1rem 1.25rem', cursor: 'pointer',
                       borderBottom: '1px solid #f0f0f0', transition: 'background 0.15s',
@@ -237,19 +259,10 @@ export default function AdminDashboard() {
                         <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
                           <Clock size={11} /> {formatTime(item.createdAt)}
                         </span>
-                        {(() => {
-                          const count = cases.filter(c =>
-                            c.title === item.title &&
-                            haversine(item.lat, item.lon, c.lat, c.lon) <= RADIUS_M
-                          ).length
-                          const { Icon, color, bg, label } = getReportIndicator(count)
-                          return (
-                            <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '0.3rem', padding: '0.15rem 0.5rem', borderRadius: '20px', background: bg, color, fontWeight: '600', fontSize: '0.72rem' }}>
-                              <Icon size={12} />
-                              {label} คน
-                            </span>
-                          )
-                        })()}
+                        <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '0.3rem', padding: '0.15rem 0.5rem', borderRadius: '20px', background: bg, color, fontWeight: '600', fontSize: '0.72rem' }}>
+                          <Icon size={12} />
+                          {label} คน
+                        </span>
                       </div>
                     </div>
                   </div>
@@ -276,7 +289,35 @@ export default function AdminDashboard() {
                       )
                     })()}
                   </div>
-                  <p style={{ fontSize: '0.8rem', color: '#999', marginBottom: '1.25rem' }}>{selected.caseId}</p>
+                  <p style={{ fontSize: '0.8rem', color: '#999', marginBottom: '0.75rem' }}>{selected.caseId}</p>
+
+                  {/* Group navigation */}
+                  {(() => {
+                    const grp = groups.find(g => g.some(c => c.caseId === selected.caseId))
+                    if (!grp || grp.length <= 1) return null
+                    const grpKey = grp[0].caseId
+                    const idx = grp.findIndex(c => c.caseId === selected.caseId)
+                    const go = (dir) => {
+                      const next = (idx + dir + grp.length) % grp.length
+                      setGroupCursors(prev => ({ ...prev, [grpKey]: next }))
+                      setSelected(grp[next])
+                    }
+                    return (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1.25rem' }}>
+                        <button onClick={() => go(-1)} style={{
+                          width: '28px', height: '28px', borderRadius: '50%', border: '1px solid #d1d5db',
+                          background: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center',
+                          justifyContent: 'center', color: '#555', fontSize: '1rem', padding: 0, flexShrink: 0,
+                        }}>‹</button>
+                        <span style={{ fontSize: '0.8rem', color: '#888' }}>{idx + 1} / {grp.length} เคส</span>
+                        <button onClick={() => go(1)} style={{
+                          width: '28px', height: '28px', borderRadius: '50%', border: '1px solid #d1d5db',
+                          background: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center',
+                          justifyContent: 'center', color: '#555', fontSize: '1rem', padding: 0, flexShrink: 0,
+                        }}>›</button>
+                      </div>
+                    )
+                  })()}
 
                   {/* Images */}
                   {selected.imageUrl && (
