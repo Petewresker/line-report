@@ -1,5 +1,5 @@
 // cases/index.js
-import { getCasesByUser, editCaseHandler, createCase, postCaseByUser, getPresignedUrl, gethotspot, getTrends, getResolution ,deleteCase} from './handler.js'
+import { getCasesByUser, editCaseHandler, createCase, postCaseByUser, getPresignedUrl, gethotspot, getTrends, getResolution, deleteCase, getMonthlyReport, seedMockCases } from './handler.js'
 
 export const handler = async (event) => {
   try {
@@ -16,6 +16,8 @@ export const handler = async (event) => {
     if (httpMethod === 'GET' && path === '/cases/resolution') return getResolution()
     //For Unit testing
     if (httpMethod === 'DELETE' && path === '/cases') return deleteCase(event)
+    if (httpMethod === 'GET' && path === '/cases/monthly') return getMonthlyReport()
+    if (httpMethod === 'POST' && path === '/cases/mockpost') return seedMockCases()
 
 
     return {

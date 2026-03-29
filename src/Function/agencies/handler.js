@@ -1,4 +1,4 @@
-import { getCaseById, getCasesByAgencyId, registrationService, getAgencyPresignedUrlService, getAllAgenciesService } from "./service.js";
+import { getCaseById, getCasesByAgencyId, registrationService, getAgencyPresignedUrlService, getAllAgenciesService, deleteAgencyService, approveAgencyService } from "./service.js";
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -104,6 +104,32 @@ export async function handleGetPresignUrl(event) {
   }
 }
 
+export async function handleDeleteAgency(event) {
+  const { agencyId } = event.pathParameters || {};
+  if (!agencyId) {
+    return withCors({ statusCode: 400, body: JSON.stringify({ message: "Missing agencyId" }) });
+  }
+  try {
+    await deleteAgencyService(agencyId);
+    return withCors({ statusCode: 200, body: JSON.stringify({ message: "Agency rejected and deleted" }) });
+  } catch (error) {
+    return withCors({ statusCode: 500, body: JSON.stringify({ message: error.message }) });
+  }
+}
+
+export async function handleApproveAgency(event) {
+  const { agencyId } = event.pathParameters || {};
+  if (!agencyId) {
+    return withCors({ statusCode: 400, body: JSON.stringify({ message: "Missing agencyId" }) });
+  }
+  try {
+    const result = await approveAgencyService(agencyId);
+    return withCors({ statusCode: 200, body: JSON.stringify({ message: "Agency approved", agency: result }) });
+  } catch (error) {
+    return withCors({ statusCode: 500, body: JSON.stringify({ message: error.message }) });
+  }
+}
+
 export async function handleRegistration(event) {
   const headers = normalizeHeaders(event.headers || {});
   const userId = headers["userid"] || headers["user-id"];
@@ -113,14 +139,14 @@ export async function handleRegistration(event) {
   }
 
   const body = JSON.parse(event.body);
-  const { name, surname, phoneNumber, agencyName, lineUserID, email } = body;
+  const { name, surname, phoneNumber, agencyName, lineUserID, email, imageKey } = body;
 
   if (!name || !surname || !phoneNumber || !agencyName) {
     return withCors({ statusCode: 400, body: JSON.stringify({ message: "Missing required fields: name, surname, phoneNumber, agencyName" }) });
   }
 
   try {
-    const result = await registrationService({ userId, name, surname, phoneNumber, agencyName, lineUserID, email });
+    const result = await registrationService({ userId, name, surname, phoneNumber, agencyName, lineUserID, email, imageKey });
     return withCors({ statusCode: 201, body: JSON.stringify({ message: "Registration submitted. Pending review.", agency: result }) });
   } catch (error) {
     return withCors({ statusCode: 500, body: JSON.stringify({ message: error.message }) });

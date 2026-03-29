@@ -1,5 +1,5 @@
 // handler.js - validate แล้วเรียก service
-import { editCaseService, getCasesByUserService, getAllCasesService, createCaseService, postCaseService, getPresignedUrlService, HostspotService, trendAnalysisService, ResolutionTime, deleteCasesByUserService } from './service.js'
+import { editCaseService, getCasesByUserService, getAllCasesService, getAllCasesAdminService, createCaseService, postCaseService, getPresignedUrlService, HostspotService, trendAnalysisService, ResolutionTime, deleteCasesByUserService, monthlyReportService } from './service.js'
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
@@ -22,10 +22,12 @@ export const getPresignedUrl = async (event) => {
 }
 export const getCasesByUser = async (event) => {
   try {
-    const { userId } = event.queryStringParameters || {}
-    const result = userId
-      ? await getCasesByUserService(userId)
-      : await getAllCasesService()
+    const { userId, admin } = event.queryStringParameters || {}
+    const result = admin === 'true'
+      ? await getAllCasesAdminService()
+      : userId
+        ? await getCasesByUserService(userId)
+        : await getAllCasesService()
     return { statusCode: 200, headers: CORS_HEADERS, body: JSON.stringify(result) }
   } catch (error) {
     console.error('getCasesByUser error:', error)
@@ -105,6 +107,26 @@ export const getResolution = async () => {
   }
 }
 
+
+export const seedMockCases = async () => {
+  try {
+    const result = await postCaseService()
+    return { statusCode: 200, headers: CORS_HEADERS, body: JSON.stringify(result) }
+  } catch (error) {
+    console.error('seedMockCases error:', error)
+    return { statusCode: 500, headers: CORS_HEADERS, body: JSON.stringify({ error: error.message }) }
+  }
+}
+
+export const getMonthlyReport = async () => {
+  try {
+    const result = await monthlyReportService()
+    return { statusCode: 200, headers: CORS_HEADERS, body: JSON.stringify(result) }
+  } catch (error) {
+    console.error('getMonthlyReport error:', error)
+    return { statusCode: 500, headers: CORS_HEADERS, body: JSON.stringify({ error: 'Failed to get monthly report', message: error.message }) }
+  }
+}
 
 export const deleteCase = async (event) => {
   try {
