@@ -1,5 +1,5 @@
 // handler.js - validate แล้วเรียก service
-import { editCaseService, getCasesByUserService, getAllCasesService, getAllCasesAdminService, createCaseService, postCaseService, getPresignedUrlService, HostspotService, trendAnalysisService, ResolutionTime, deleteCasesByUserService, monthlyReportService } from './service.js'
+import { editCaseService, getCasesByUserService, getAllCasesService, getAllCasesAdminService, createCaseService, postCaseService, getPresignedUrlService, HostspotService, trendAnalysisService, ResolutionTime, deleteCasesByUserService, monthlyReportService, deleteAllCasesService } from './service.js'
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
@@ -140,6 +140,16 @@ export const deleteCase = async (event) => {
   } catch (error) {
     console.error('deleteCase error:', error)
     return { statusCode: 500, headers: CORS_HEADERS, body: JSON.stringify({ error: 'Failed to delete cases', message: error.message }) }
+  }
+}
+
+export const deleteAllCases = async () => {
+  try {
+    const result = await deleteAllCasesService()
+    return { statusCode: 200, headers: CORS_HEADERS, body: JSON.stringify(result) }
+  } catch (error) {
+    console.error('deleteAllCases error:', error)
+    return { statusCode: 500, headers: CORS_HEADERS, body: JSON.stringify({ error: 'Failed to delete all cases', message: error.message }) }
   }
 }
 

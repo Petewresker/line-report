@@ -62,13 +62,13 @@ export const assignReport = async (event) => {
     const { caseId } = event;
     const body = typeof event.body === 'string' ? JSON.parse(event.body || '{}') : (event.body || {})
     const caseIds = Array.isArray(body.caseIds) ? body.caseIds : []
-    const agencyName = body.agencyName
+    const agencyId = body.agencyId
 
-    if (!agencyName) {
-      return { statusCode: 400, headers: CORS_HEADERS, body: JSON.stringify({ message: 'agencyName is required' }) }
+    if (!agencyId) {
+      return { statusCode: 400, headers: CORS_HEADERS, body: JSON.stringify({ message: 'agencyId is required' }) }
     }
 
-    const result = await assignReportService(caseId, agencyName, caseIds);
+    const result = await assignReportService(caseId, agencyId, caseIds);
 
     return {
       statusCode: result.statusCode || 200,

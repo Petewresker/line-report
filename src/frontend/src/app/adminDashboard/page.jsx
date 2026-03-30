@@ -125,14 +125,7 @@ export default function AdminDashboard() {
       .then(r => r.json())
       .then(data => {
         const active = Array.isArray(data.agencies) ? data.agencies.filter(a => a.Status === 'ACTIVE') : []
-        // group by AgencyName
-        const groupMap = {}
-        for (const a of active) {
-          const name = a.AgencyName || 'ไม่ระบุ'
-          if (!groupMap[name]) groupMap[name] = []
-          groupMap[name].push(a)
-        }
-        setAgencies(Object.entries(groupMap).map(([name, members]) => ({ name, members })))
+        setAgencies(active.map(a => ({ agencyId: a.AgencyID, name: `${a.Name} ${a.Surname}`, agencyName: a.AgencyName })))
       })
       .catch(console.error)
       .finally(() => setLoadingAgencies(false))
@@ -146,7 +139,7 @@ export default function AdminDashboard() {
       await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/cases/${selected.caseId}/assign`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ agencyName: selectedAgency.name, caseIds }),
+        body: JSON.stringify({ agencyId: selectedAgency.agencyId, caseIds }),
       })
       setCases(prev => prev.map(c => caseIds.includes(c.caseId) ? { ...c, status: 'FORWARD' } : c))
       setSelected(prev => prev ? { ...prev, status: 'FORWARD' } : prev)
@@ -486,7 +479,7 @@ export default function AdminDashboard() {
                       </div>
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <p style={{ fontSize: '0.875rem', fontWeight: '600', color: '#111', marginBottom: '0.1rem' }}>{group.name}</p>
-                        <p style={{ fontSize: '0.75rem', color: '#999' }}>{group.members.length} คน</p>
+                        <p style={{ fontSize: '0.75rem', color: '#999' }}>{group.agencyName}</p>
                       </div>
                       <div style={{
                         width: '18px', height: '18px', borderRadius: '50%', flexShrink: 0,

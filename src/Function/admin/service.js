@@ -1,5 +1,5 @@
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb'
-import { DynamoDBDocumentClient, GetCommand, UpdateCommand, PutCommand, ScanCommand } from '@aws-sdk/lib-dynamodb'
+import { DynamoDBDocumentClient, GetCommand, UpdateCommand, PutCommand } from '@aws-sdk/lib-dynamodb'
 import { randomUUID } from 'crypto'
 import { pushLine, createCaseFlexMessage } from './line.js'
 
@@ -9,19 +9,19 @@ function caseKey(caseId) {
   return { PK: `CASE#${caseId}`, SK: 'METADATA' }
 }
 
-// อัปเดต case เดียว → FORWARD + AssignedAgencyName, คืน null ถ้า skip (ไม่ใช่ PENDING)
-async function forwardOneCase(tableName, caseId, agencyName, now) {
+// อัปเดต case เดียว → FORWARD + AssignedAgencyID, คืน null ถ้า skip (ไม่ใช่ PENDING)
+async function forwardOneCase(tableName, caseId, agencyId, now) {
   try {
     const result = await client.send(new UpdateCommand({
       TableName: tableName,
       Key: caseKey(caseId),
-      UpdateExpression: 'SET #st = :fwd, AssignedAgencyName = :agencyName, ForwardedAt = :now',
+      UpdateExpression: 'SET #st = :fwd, AssignedAgencyID = :agencyId, ForwardedAt = :now',
       ConditionExpression: '#st = :pending',
       ExpressionAttributeNames: { '#st': 'status' },
       ExpressionAttributeValues: {
         ':fwd': 'FORWARD',
         ':pending': 'PENDING',
-        ':agencyName': agencyName,
+        ':agencyId': agencyId,
         ':now': now,
       },
       ReturnValues: 'ALL_NEW',
@@ -60,7 +60,7 @@ export const getAdminByUserIdService = async (lineUserId) => {
   return result.Item ?? null
 }
 
-export const assignReportService = async (caseId, agencyName, caseIds = []) => {
+export const assignReportService = async (caseId, agencyId, caseIds = []) => {
   const tableName = process.env.TABLE_TABLE_NAME
   if (!tableName) {
     return { statusCode: 500, data: { success: false, message: 'TABLE_TABLE_NAME is not configured' } }
@@ -68,30 +68,25 @@ export const assignReportService = async (caseId, agencyName, caseIds = []) => {
 
   const allIds = caseIds.length > 0 ? caseIds : [caseId]
 
-  // ดึง primary case + scan หา members ทั้งหมดของหน่วยงาน พร้อมกัน
-  const [primaryResult, memberScan] = await Promise.all([
+  const [primaryResult, agencyResult] = await Promise.all([
     client.send(new GetCommand({ TableName: tableName, Key: caseKey(caseId) })),
-    client.send(new ScanCommand({
-      TableName: tableName,
-      FilterExpression: 'AgencyName = :name AND begins_with(PK, :prefix) AND #st = :active',
-      ExpressionAttributeNames: { '#st': 'Status' },
-      ExpressionAttributeValues: { ':name': agencyName, ':prefix': 'AGENCY#', ':active': 'ACTIVE' },
-    })),
+    client.send(new GetCommand({ TableName: tableName, Key: { PK: `AGENCY#${agencyId}`, SK: `METADATA#${agencyId}` } })),
   ])
 
   if (!primaryResult.Item) {
     return { statusCode: 404, data: { success: false, message: 'Case not found' } }
   }
-
-  const members = memberScan.Items || []
-  if (members.length === 0) {
-    return { statusCode: 404, data: { success: false, message: 'Agency not found or no active members' } }
+  const member = agencyResult.Item
+  if (!member) {
+    return { statusCode: 404, data: { success: false, message: 'Agency not found' } }
+  }
+  if (member.Status !== 'ACTIVE') {
+    return { statusCode: 400, data: { success: false, message: 'Agency is not active' } }
   }
 
-  // Forward ทุก case → set AssignedAgencyName
   const now = new Date().toISOString()
   const updateResults = await Promise.all(
-    allIds.map(id => forwardOneCase(tableName, id, agencyName, now))
+    allIds.map(id => forwardOneCase(tableName, id, agencyId, now))
   )
   const forwarded = updateResults.filter(Boolean)
 
@@ -99,22 +94,17 @@ export const assignReportService = async (caseId, agencyName, caseIds = []) => {
     return { statusCode: 409, data: { success: false, message: 'No PENDING cases to forward' } }
   }
 
-  // Push LINE ไปทุกคนในหน่วยงาน
-  const primaryCase = primaryResult.Item
-  await Promise.allSettled(
-    members
-      .filter(m => m.LineUserID)
-      .map(m => {
-        const flexMessage = createCaseFlexMessage(primaryCase, caseId, forwarded.length)
-        return pushLine(m.LineUserID, [flexMessage]).catch(err => console.error('LINE push failed:', err))
-      })
-  )
+  // Push LINE ไปหาคนที่ assign
+  if (member.LineUserID) {
+    const flexMessage = createCaseFlexMessage(primaryResult.Item, caseId, forwarded.length)
+    await pushLine(member.LineUserID, [flexMessage]).catch(err => console.error('LINE push failed:', err))
+  }
 
   return {
     statusCode: 200,
     data: {
       success: true,
-      message: `Forwarded ${forwarded.length} case(s) to agency "${agencyName}"`,
+      message: `Forwarded ${forwarded.length} case(s) to agency "${member.AgencyName}"`,
       forwarded: forwarded.map(c => c.caseId),
     },
   }

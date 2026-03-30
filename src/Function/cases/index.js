@@ -1,5 +1,5 @@
 // cases/index.js
-import { getCasesByUser, editCaseHandler, createCase, postCaseByUser, getPresignedUrl, gethotspot, getTrends, getResolution, deleteCase, getMonthlyReport, seedMockCases } from './handler.js'
+import { getCasesByUser, editCaseHandler, createCase, postCaseByUser, getPresignedUrl, gethotspot, getTrends, getResolution, deleteCase, getMonthlyReport, seedMockCases, deleteAllCases } from './handler.js'
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
@@ -21,6 +21,7 @@ export const handler = async (event) => {
     if (httpMethod === 'GET' && path === '/cases/trends') return getTrends()
     if (httpMethod === 'GET' && path === '/cases/resolution') return getResolution()
     if (httpMethod === 'DELETE' && path === '/cases') return deleteCase(event)
+    if (httpMethod === 'DELETE' && path === '/cases/all') return deleteAllCases()
     if (httpMethod === 'GET' && path === '/cases/monthly') return getMonthlyReport()
     if (httpMethod === 'POST' && path === '/cases/mockpost') return seedMockCases()
 

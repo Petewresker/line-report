@@ -146,6 +146,31 @@ export const deleteCasesByUserService = async (userId) => {
   return { deleted: result.Items.length }
 }
 
+export const deleteAllCasesService = async () => {
+  let lastKey
+  let deleted = 0
+  do {
+    const result = await client.send(new ScanCommand({
+      TableName: process.env.TABLE_TABLE_NAME,
+      FilterExpression: 'begins_with(PK, :prefix)',
+      ExpressionAttributeValues: { ':prefix': 'CASE#' },
+      ProjectionExpression: 'PK, SK',
+      ExclusiveStartKey: lastKey,
+    }))
+    await Promise.all(
+      result.Items.map((item) =>
+        client.send(new DeleteCommand({
+          TableName: process.env.TABLE_TABLE_NAME,
+          Key: { PK: item.PK, SK: item.SK },
+        }))
+      )
+    )
+    deleted += result.Items.length
+    lastKey = result.LastEvaluatedKey
+  } while (lastKey)
+  return { deleted }
+}
+
 export const getCasesByUserService = async (userId) => {
   const result = await client.send(new ScanCommand({
     TableName: process.env.TABLE_TABLE_NAME,
