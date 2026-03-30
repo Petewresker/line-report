@@ -119,6 +119,22 @@ export async function getAllAgenciesService() {
   return itemsWithUrl;
 }
 
+// ลบ Agency ทั้งหมด
+export async function deleteAllAgenciesService() {
+  const items = await scanAll({
+    TableName: TABLE_NAME,
+    FilterExpression: "begins_with(PK, :prefix)",
+    ExpressionAttributeValues: { ":prefix": "AGENCY#" }
+  });
+  await Promise.all(
+    items.map(item => dynamoDB.send(new DeleteCommand({
+      TableName: TABLE_NAME,
+      Key: { PK: item.PK, SK: item.SK }
+    })))
+  );
+  return { deleted: items.length };
+}
+
 // ลบ Agency (Reject)
 export async function deleteAgencyService(agencyId) {
   await dynamoDB.send(

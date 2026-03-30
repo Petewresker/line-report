@@ -5,6 +5,7 @@ import {
   handleGetPresignUrl,
   handleGetAllAgencies,
   handleDeleteAgency,
+  handleDeleteAllAgencies,
   handleApproveAgency,
   acceptCase,
   completeCaseHandler,
@@ -60,6 +61,10 @@ export const handler = async (event) => {
 
     if (httpMethod === "POST" && path.match(/^\/agencies\/[^/]+\/approve$/)) {
       return await handleApproveAgency(event);
+    }
+
+    if (httpMethod === "DELETE" && path === "/agencies/all") {
+      return await handleDeleteAllAgencies();
     }
 
     if (httpMethod === "DELETE" && path.match(/^\/agencies\/[^/]+$/)) {
