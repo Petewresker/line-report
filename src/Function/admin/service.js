@@ -1,9 +1,19 @@
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb'
 import { DynamoDBDocumentClient, GetCommand, UpdateCommand, PutCommand } from '@aws-sdk/lib-dynamodb'
+import { S3Client, GetObjectCommand } from '@aws-sdk/client-s3'
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
 import { randomUUID } from 'crypto'
 import { pushLine, createCaseFlexMessage } from './line.js'
 
 const client = DynamoDBDocumentClient.from(new DynamoDBClient({}))
+const s3 = new S3Client({ requestChecksumCalculation: 'WHEN_REQUIRED', responseChecksumValidation: 'WHEN_REQUIRED' })
+
+async function getImageUrl(key) {
+  if (!key) return null
+  if (key.startsWith('http')) return key
+  const cmd = new GetObjectCommand({ Bucket: process.env.IMAGEBUCKET_BUCKET_NAME, Key: key })
+  return getSignedUrl(s3, cmd, { expiresIn: 3600 })
+}
 
 function caseKey(caseId) {
   return { PK: `CASE#${caseId}`, SK: 'METADATA' }
@@ -96,7 +106,8 @@ export const assignReportService = async (caseId, agencyId, caseIds = []) => {
 
   // Push LINE ไปหาคนที่ assign
   if (member.LineUserID) {
-    const flexMessage = createCaseFlexMessage(primaryResult.Item, caseId, forwarded.length)
+    const imageUrl = await getImageUrl(primaryResult.Item.imageUrlBefore)
+    const flexMessage = createCaseFlexMessage(primaryResult.Item, caseId, forwarded.length, imageUrl)
     await pushLine(member.LineUserID, [flexMessage]).catch(err => console.error('LINE push failed:', err))
   }
 

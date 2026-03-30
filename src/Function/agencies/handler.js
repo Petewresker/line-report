@@ -5,6 +5,7 @@ import {
   getAgencyPresignedUrlService,
   getAllAgenciesService,
   deleteAgencyService,
+  deleteAllAgenciesService,
   approveAgencyService,
   acceptCaseService,
   completeCaseService,
@@ -107,6 +108,15 @@ export async function handleGetPresignUrl(event) {
 
   try {
     const result = await getAgencyPresignedUrlService(filename, contentType);
+    return withCors({ statusCode: 200, body: JSON.stringify(result) });
+  } catch (error) {
+    return withCors({ statusCode: 500, body: JSON.stringify({ message: error.message }) });
+  }
+}
+
+export async function handleDeleteAllAgencies() {
+  try {
+    const result = await deleteAllAgenciesService();
     return withCors({ statusCode: 200, body: JSON.stringify(result) });
   } catch (error) {
     return withCors({ statusCode: 500, body: JSON.stringify({ message: error.message }) });
