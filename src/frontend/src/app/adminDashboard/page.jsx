@@ -178,7 +178,7 @@ export default function AdminDashboard() {
     for (const item of filtered) {
       if (assigned.has(item.caseId)) continue
       const group = filtered.filter(c =>
-        c.title === item.title && haversine(item.lat, item.lon, c.lat, c.lon) <= RADIUS_M
+        c.title === item.title && c.status === item.status && haversine(item.lat, item.lon, c.lat, c.lon) <= RADIUS_M
       )
       group.forEach(c => assigned.add(c.caseId))
       result.push(group)
