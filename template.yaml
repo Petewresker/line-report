@@ -1,4 +1,10 @@
 Transform: AWS::Serverless-2016-10-31
+Globals:
+  Api:
+    Cors:
+      AllowMethods: "'GET,POST,PUT,DELETE,OPTIONS'"
+      AllowHeaders: "'Content-Type,Authorization,userid,agencyid,role'"
+      AllowOrigin: "'*'"
 Resources:
   Api:
     Type: AWS::Serverless::Api
@@ -12,11 +18,18 @@ Resources:
         info: {}
         paths:
           /callback:
-            get:
+            post:
               x-amazon-apigateway-integration:
                 httpMethod: POST
                 type: aws_proxy
                 uri: !Sub arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${callback.Arn}/invocations
+              responses: {}
+          /cases/presigned-url:
+            get:
+              x-amazon-apigateway-integration:
+                httpMethod: POST
+                type: aws_proxy
+                uri: !Sub arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${cases.Arn}/invocations
               responses: {}
           /cases:
             get:
@@ -31,12 +44,45 @@ Resources:
                 type: aws_proxy
                 uri: !Sub arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${cases.Arn}/invocations
               responses: {}
+            delete:
+              x-amazon-apigateway-integration:
+                httpMethod: POST
+                type: aws_proxy
+                uri: !Sub arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${cases.Arn}/invocations
+              responses: {}
           /cases/{caseId}/edit:
             post:
               x-amazon-apigateway-integration:
                 httpMethod: POST
                 type: aws_proxy
                 uri: !Sub arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${cases.Arn}/invocations
+              responses: {}
+          /agencies:
+            get:
+              x-amazon-apigateway-integration:
+                httpMethod: POST
+                type: aws_proxy
+                uri: !Sub arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${agencies.Arn}/invocations
+              responses: {}
+            post:
+              x-amazon-apigateway-integration:
+                httpMethod: POST
+                type: aws_proxy
+                uri: !Sub arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${agencies.Arn}/invocations
+              responses: {}
+          /agencies/me:
+            get:
+              x-amazon-apigateway-integration:
+                httpMethod: POST
+                type: aws_proxy
+                uri: !Sub arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${agencies.Arn}/invocations
+              responses: {}
+          /agencies/presign:
+            post:
+              x-amazon-apigateway-integration:
+                httpMethod: POST
+                type: aws_proxy
+                uri: !Sub arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${agencies.Arn}/invocations
               responses: {}
           /agencies/cases/{caseId}/accept:
             post:
@@ -66,6 +112,48 @@ Resources:
                 type: aws_proxy
                 uri: !Sub arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${agencies.Arn}/invocations
               responses: {}
+          /agencies/{agencyId}/approve:
+            post:
+              x-amazon-apigateway-integration:
+                httpMethod: POST
+                type: aws_proxy
+                uri: !Sub arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${agencies.Arn}/invocations
+              responses: {}
+          /agencies/all:
+            delete:
+              x-amazon-apigateway-integration:
+                httpMethod: POST
+                type: aws_proxy
+                uri: !Sub arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${agencies.Arn}/invocations
+              responses: {}
+          /agencies/{agencyId}:
+            delete:
+              x-amazon-apigateway-integration:
+                httpMethod: POST
+                type: aws_proxy
+                uri: !Sub arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${agencies.Arn}/invocations
+              responses: {}
+          /admin/users:
+            post:
+              x-amazon-apigateway-integration:
+                httpMethod: POST
+                type: aws_proxy
+                uri: !Sub arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${admin.Arn}/invocations
+              responses: {}
+          /admin/me:
+            get:
+              x-amazon-apigateway-integration:
+                httpMethod: POST
+                type: aws_proxy
+                uri: !Sub arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${admin.Arn}/invocations
+              responses: {}
+          /admin/cases/{caseId}/assign:
+            post:
+              x-amazon-apigateway-integration:
+                httpMethod: POST
+                type: aws_proxy
+                uri: !Sub arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${admin.Arn}/invocations
+              responses: {}
           /admin/cases/{caseId}/agencies/{agencyId}:
             post:
               x-amazon-apigateway-integration:
@@ -73,10 +161,50 @@ Resources:
                 type: aws_proxy
                 uri: !Sub arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${admin.Arn}/invocations
               responses: {}
+          /cases/hotspots:
+            get:
+              x-amazon-apigateway-integration:
+                httpMethod: POST
+                type: aws_proxy
+                uri: !Sub arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${cases.Arn}/invocations
+              responses: {}
+          /cases/trends:
+            get:
+              x-amazon-apigateway-integration:
+                httpMethod: POST
+                type: aws_proxy
+                uri: !Sub arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${cases.Arn}/invocations
+              responses: {}
+          /cases/resolution:
+            get:
+              x-amazon-apigateway-integration:
+                httpMethod: POST
+                type: aws_proxy
+                uri: !Sub arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${cases.Arn}/invocations
+              responses: {}
+          /cases/monthly:
+            get:
+              x-amazon-apigateway-integration:
+                httpMethod: POST
+                type: aws_proxy
+                uri: !Sub arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${cases.Arn}/invocations
+              responses: {}
+          /cases/mockpost:
+            post:
+              x-amazon-apigateway-integration:
+                httpMethod: POST
+                type: aws_proxy
+                uri: !Sub arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${cases.Arn}/invocations
+              responses: {}
+          /cases/all:
+            delete:
+              x-amazon-apigateway-integration:
+                httpMethod: POST
+                type: aws_proxy
+                uri: !Sub arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${cases.Arn}/invocations
+              responses: {}
       EndpointConfiguration: REGIONAL
       TracingEnabled: true
-      Cors:
-        MaxAge: 5
 
   IncidentTable:
     Type: AWS::DynamoDB::Table
@@ -151,6 +279,8 @@ Resources:
           TABLE_TABLE_ARN: !GetAtt IncidentTable.Arn
           IMAGEBUCKET_BUCKET_NAME: !Ref ImageBucket
           IMAGEBUCKET_BUCKET_ARN: !GetAtt ImageBucket.Arn
+          LINE_CHANNEL_ACCESS_TOKEN: Z2QLS2+EWWCVKzMIvRwnHLzMpue6rbTiVQ87PSrvKYggU/ca052XPbyN94S7Roks9EMUhOhc6Fz0wJXuv+8L3Re3rajyFntWbFj3KiIDygtT9TkFlwwHOKmf3m0/oQOdy17Gg43gOupEpadp+XxfJwdB04t89/1O/w1cDnyilFU=
+          LIFF_URL: https://liff.line.me/2009444975-WqhF6Iws
       Events:
         ApiPOSTagenciescasescaseIdaccept:
           Type: Api
@@ -176,33 +306,48 @@ Resources:
             Path: /agencies/{agencyId}/cases
             Method: GET
             RestApiId: !Ref Api
-      Policies:
-        - Statement:
-            - Effect: Allow
-              Action:
-                - s3:GetObject
-                - s3:GetObjectAcl
-                - s3:GetObjectLegalHold
-                - s3:GetObjectRetention
-                - s3:GetObjectTorrent
-                - s3:GetObjectVersion
-                - s3:GetObjectVersionAcl
-                - s3:GetObjectVersionForReplication
-                - s3:GetObjectVersionTorrent
-                - s3:ListBucket
-                - s3:ListBucketMultipartUploads
-                - s3:ListBucketVersions
-                - s3:ListMultipartUploadParts
-                - s3:AbortMultipartUpload
-                - s3:DeleteObject
-                - s3:DeleteObjectVersion
-                - s3:PutObject
-                - s3:PutObjectLegalHold
-                - s3:PutObjectRetention
-                - s3:RestoreObject
-              Resource:
-                - !Sub arn:${AWS::Partition}:s3:::${ImageBucket}
-                - !Sub arn:${AWS::Partition}:s3:::${ImageBucket}/*
+        ApiGETagenciesMe:
+          Type: Api
+          Properties:
+            Path: /agencies/me
+            Method: GET
+            RestApiId: !Ref Api
+        ApiGETagencies:
+          Type: Api
+          Properties:
+            Path: /agencies
+            Method: GET
+            RestApiId: !Ref Api
+        ApiPOSTagencies:
+          Type: Api
+          Properties:
+            Path: /agencies
+            Method: POST
+            RestApiId: !Ref Api
+        ApiPOSTagenciesPresign:
+          Type: Api
+          Properties:
+            Path: /agencies/presign
+            Method: POST
+            RestApiId: !Ref Api
+        ApiPOSTagenciesAgencyIdApprove:
+          Type: Api
+          Properties:
+            Path: /agencies/{agencyId}/approve
+            Method: POST
+            RestApiId: !Ref Api
+        ApiDELETEagenciesAll:
+          Type: Api
+          Properties:
+            Path: /agencies/all
+            Method: DELETE
+            RestApiId: !Ref Api
+        ApiDELETEagenciesAgencyId:
+          Type: Api
+          Properties:
+            Path: /agencies/{agencyId}
+            Method: DELETE
+            RestApiId: !Ref Api
   agenciesLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
@@ -226,7 +371,14 @@ Resources:
           TABLE_TABLE_ARN: !GetAtt IncidentTable.Arn
           IMAGEBUCKET_BUCKET_NAME: !Ref ImageBucket
           IMAGEBUCKET_BUCKET_ARN: !GetAtt ImageBucket.Arn
+          DYNAMODB_ENDPOINT: ''
       Events:
+        ApiGETcasesPresignedUrl:
+          Type: Api
+          Properties:
+            Path: /cases/presigned-url
+            Method: GET
+            RestApiId: !Ref Api
         ApiGETcases:
           Type: Api
           Properties:
@@ -244,6 +396,48 @@ Resources:
           Properties:
             Path: /cases/{caseId}/edit
             Method: POST
+            RestApiId: !Ref Api
+        ApiGETcasesHotspots:
+          Type: Api
+          Properties:
+            Path: /cases/hotspots
+            Method: GET
+            RestApiId: !Ref Api
+        ApiGETcasesTrends:
+          Type: Api
+          Properties:
+            Path: /cases/trends
+            Method: GET
+            RestApiId: !Ref Api
+        ApiGETcasesResolution:
+          Type: Api
+          Properties:
+            Path: /cases/resolution
+            Method: GET
+            RestApiId: !Ref Api
+        ApiGETcasesMonthly:
+          Type: Api
+          Properties:
+            Path: /cases/monthly
+            Method: GET
+            RestApiId: !Ref Api
+        ApiPOSTcasesMockpost:
+          Type: Api
+          Properties:
+            Path: /cases/mockpost
+            Method: POST
+            RestApiId: !Ref Api
+        ApiDELETEcases:
+          Type: Api
+          Properties:
+            Path: /cases
+            Method: DELETE
+            RestApiId: !Ref Api
+        ApiDELETEcasesAll:
+          Type: Api
+          Properties:
+            Path: /cases/all
+            Method: DELETE
             RestApiId: !Ref Api
       Policies:
         - Statement:
@@ -295,12 +489,14 @@ Resources:
           TABLE_TABLE_ARN: !GetAtt IncidentTable.Arn
           IMAGEBUCKET_BUCKET_NAME: !Ref ImageBucket
           IMAGEBUCKET_BUCKET_ARN: !GetAtt ImageBucket.Arn
+          LINE_CHANNEL_ACCESS_TOKEN: Z2QLS2+EWWCVKzMIvRwnHLzMpue6rbTiVQ87PSrvKYggU/ca052XPbyN94S7Roks9EMUhOhc6Fz0wJXuv+8L3Re3rajyFntWbFj3KiIDygtT9TkFlwwHOKmf3m0/oQOdy17Gg43gOupEpadp+XxfJwdB04t89/1O/w1cDnyilFU=
+          LIFF_URL: https://liff.line.me/2009444975-WqhF6Iws
       Events:
-        ApiGETcallback:
+        ApiPOSTcallback:
           Type: Api
           Properties:
             Path: /callback
-            Method: GET
+            Method: POST
             RestApiId: !Ref Api
       Policies:
         - Statement:
@@ -352,7 +548,28 @@ Resources:
           TABLE_TABLE_ARN: !GetAtt IncidentTable.Arn
           IMAGEBUCKET_BUCKET_NAME: !Ref ImageBucket
           IMAGEBUCKET_BUCKET_ARN: !GetAtt ImageBucket.Arn
+          DYNAMODB_ENDPOINT: ''
+          LINE_CHANNEL_ACCESS_TOKEN: Z2QLS2+EWWCVKzMIvRwnHLzMpue6rbTiVQ87PSrvKYggU/ca052XPbyN94S7Roks9EMUhOhc6Fz0wJXuv+8L3Re3rajyFntWbFj3KiIDygtT9TkFlwwHOKmf3m0/oQOdy17Gg43gOupEpadp+XxfJwdB04t89/1O/w1cDnyilFU=
+          AGENCY_WEB_LIFF_URL: https://liff.line.me/2009444975-NsMS2WyX
       Events:
+        ApiPOSTadminUsers:
+          Type: Api
+          Properties:
+            Path: /admin/users
+            Method: POST
+            RestApiId: !Ref Api
+        ApiGETadminMe:
+          Type: Api
+          Properties:
+            Path: /admin/me
+            Method: GET
+            RestApiId: !Ref Api
+        ApiPOSTadminCasesCaseIdAssign:
+          Type: Api
+          Properties:
+            Path: /admin/cases/{caseId}/assign
+            Method: POST
+            RestApiId: !Ref Api
         ApiPOSTadmincasescaseIdagenciesagencyId:
           Type: Api
           Properties:
@@ -402,6 +619,16 @@ Resources:
       PublicAccessBlockConfiguration:
         IgnorePublicAcls: true
         RestrictPublicBuckets: true
+      CorsConfiguration:
+        CorsRules:
+          - AllowedOrigins:
+              - '*'
+            AllowedMethods:
+              - PUT
+              - GET
+            AllowedHeaders:
+              - '*'
+            MaxAge: 3000
   ImageBucketBucketPolicy:
     Type: AWS::S3::BucketPolicy
     Properties:
