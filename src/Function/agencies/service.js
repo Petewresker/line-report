@@ -50,34 +50,26 @@ export async function getCaseById(_agencyId, caseId) {
 }
 
 // ดึงทุกเคสที่ assign ให้หน่วยงานนี้ (scan by AssignedAgencyName)
+async function scanAll(params) {
+  const items = [];
+  let lastKey;
+  do {
+    const result = await dynamoDB.send(new ScanCommand({ ...params, ExclusiveStartKey: lastKey }));
+    items.push(...(result.Items || []));
+    lastKey = result.LastEvaluatedKey;
+  } while (lastKey);
+  return items;
+}
+
 export async function getCasesByAgencyId(agencyId) {
-  // look up agency record เพื่อเอา AgencyName
-  const agencyRes = await dynamoDB.send(
-    new ScanCommand({
-      TableName: TABLE_NAME,
-      FilterExpression: "AgencyID = :id AND begins_with(PK, :prefix)",
-      ExpressionAttributeValues: { ":id": agencyId, ":prefix": "AGENCY#" }
-    })
-  )
-  const agencyItem = agencyRes.Items?.[0]
-  console.log("[DEBUG] agencyId lookup:", agencyId, "→ found:", JSON.stringify(agencyItem ?? null))
-  if (!agencyItem) return []
-
-  console.log("[DEBUG] searching cases by AgencyName:", agencyItem.AgencyName, "AgencyID:", agencyId)
-  const result = await dynamoDB.send(
-    new ScanCommand({
-      TableName: TABLE_NAME,
-      FilterExpression: "(AssignedAgencyName = :name OR AssignedAgencyID = :agencyId) AND begins_with(PK, :prefix)",
-      ExpressionAttributeValues: {
-        ":name": agencyItem.AgencyName,
-        ":agencyId": agencyId,
-        ":prefix": "CASE#"
-      }
-    })
-  );
-  console.log("[DEBUG] cases found:", result.Items?.length ?? 0)
-
-  const items = result.Items || [];
+  const items = await scanAll({
+    TableName: TABLE_NAME,
+    FilterExpression: "AssignedAgencyID = :agencyId AND begins_with(PK, :prefix)",
+    ExpressionAttributeValues: {
+      ":agencyId": agencyId,
+      ":prefix": "CASE#"
+    }
+  });
 
   // แนบ signed URL สำหรับรูปก่อนงาน
   return Promise.all(
