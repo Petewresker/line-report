@@ -17,7 +17,7 @@ export async function pushLine(userId, messages) {
   }
 }
 
-export function createCaseFlexMessage(report, caseId, totalCount = 1) {
+export function createCaseFlexMessage(report, caseId, totalCount = 1, imageUrl = null) {
   const agencyLiffUrl = process.env.AGENCY_WEB_LIFF_URL ?? "https://line.me/"
   const countText = totalCount > 1 ? `${totalCount} เคสที่เกี่ยวข้อง` : `1 เคส`
   const location = (report.lat && report.lon) ? `${report.lat}, ${report.lon}` : "ไม่ระบุ"
@@ -37,10 +37,10 @@ export function createCaseFlexMessage(report, caseId, totalCount = 1) {
           { type: "text", text: countText, color: "#d1fae5", size: "xs", margin: "xs" },
         ],
       },
-      ...(report.imageUrlBefore ? {
+      ...(imageUrl ? {
         hero: {
           type: "image",
-          url: report.imageUrlBefore,
+          url: imageUrl,
           size: "full",
           aspectRatio: "20:13",
           aspectMode: "cover",

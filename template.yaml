@@ -265,6 +265,8 @@ Resources:
           TABLE_TABLE_ARN: !GetAtt IncidentTable.Arn
           IMAGEBUCKET_BUCKET_NAME: !Ref ImageBucket
           IMAGEBUCKET_BUCKET_ARN: !GetAtt ImageBucket.Arn
+          LINE_CHANNEL_ACCESS_TOKEN: Z2QLS2+EWWCVKzMIvRwnHLzMpue6rbTiVQ87PSrvKYggU/ca052XPbyN94S7Roks9EMUhOhc6Fz0wJXuv+8L3Re3rajyFntWbFj3KiIDygtT9TkFlwwHOKmf3m0/oQOdy17Gg43gOupEpadp+XxfJwdB04t89/1O/w1cDnyilFU=
+          LIFF_URL: https://liff.line.me/2009444975-WqhF6Iws
       Events:
         ApiPOSTagenciescasescaseIdaccept:
           Type: Api
