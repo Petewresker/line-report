@@ -28,7 +28,7 @@ function groupCases(cases) {
   const groups = [];
   for (const item of cases) {
     const existing = groups.find(
-      (g) => g.title === item.title && haversine(g.lat, g.lon, item.lat, item.lon) <= GROUP_RADIUS_M
+      (g) => g.cases[0].status === item.status && g.title === item.title && haversine(g.lat, g.lon, item.lat, item.lon) <= GROUP_RADIUS_M
     );
     if (existing) {
       existing.cases.push(item);
@@ -50,9 +50,9 @@ function groupCases(cases) {
 }
 
 function deriveGroupStatus(cases) {
-  if (cases.every((c) => c.status === "FINISHED")) return "FINISHED";
   if (cases.some((c) => c.status === "IN_PROGRESS")) return "IN_PROGRESS";
-  return "FORWARD";
+  if (cases.some((c) => c.status === "FORWARD")) return "FORWARD";
+  return "FINISHED";
 }
 
 function formatDate(iso) {

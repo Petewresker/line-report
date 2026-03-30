@@ -24,7 +24,7 @@ export const getCasesByUserService = async (userId) => {
     TableName: process.env.TABLE_TABLE_NAME,
     FilterExpression: 'userId = :userId',
     ExpressionAttributeValues: { ':userId': userId },
-    ProjectionExpression: 'caseId, title, description, #st, imageUrlBefore, createdAt',
+    ProjectionExpression: 'caseId, title, description, #st, imageUrlBefore, ImageKeyAfter, Summary, createdAt',
     ExpressionAttributeNames: { '#st': 'status' },
   }))
 
@@ -32,6 +32,7 @@ export const getCasesByUserService = async (userId) => {
     result.Items.map(async (item) => ({
       ...item,
       imageUrl: await getImageUrl(item.imageUrlBefore),
+      imageUrlAfter: await getImageUrl(item.ImageKeyAfter),
     }))
   )
 

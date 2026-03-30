@@ -40,6 +40,8 @@ export async function handleGetCasesByAgencyId(event) {
   const { agencyId } = event.pathParameters || {};
   const { userId, tokenAgencyId, role } = getAuth(event);
 
+  console.log("[DEBUG] handleGetCasesByAgencyId — agencyId:", agencyId, "userId:", userId, "tokenAgencyId:", tokenAgencyId, "role:", role);
+
   if (!userId || !agencyId || !role) {
     return withCors({ statusCode: 400, body: JSON.stringify({ message: "Missing authentication data" }) });
   }

@@ -3,6 +3,7 @@ import { DynamoDBDocumentClient, GetCommand, PutCommand, ScanCommand, DeleteComm
 import { S3Client, PutObjectCommand, GetObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { randomUUID } from "crypto";
+import { pushLine, createCompletionFlexMessage } from "./line.js";
 
 const client = new DynamoDBClient({
   region: process.env.AWS_REGION ?? "us-east-1",
@@ -59,18 +60,22 @@ export async function getCasesByAgencyId(agencyId) {
     })
   )
   const agencyItem = agencyRes.Items?.[0]
+  console.log("[DEBUG] agencyId lookup:", agencyId, "→ found:", JSON.stringify(agencyItem ?? null))
   if (!agencyItem) return []
 
+  console.log("[DEBUG] searching cases by AgencyName:", agencyItem.AgencyName, "AgencyID:", agencyId)
   const result = await dynamoDB.send(
     new ScanCommand({
       TableName: TABLE_NAME,
-      FilterExpression: "AssignedAgencyName = :name AND begins_with(PK, :prefix)",
+      FilterExpression: "(AssignedAgencyName = :name OR AssignedAgencyID = :agencyId) AND begins_with(PK, :prefix)",
       ExpressionAttributeValues: {
         ":name": agencyItem.AgencyName,
+        ":agencyId": agencyId,
         ":prefix": "CASE#"
       }
     })
   );
+  console.log("[DEBUG] cases found:", result.Items?.length ?? 0)
 
   const items = result.Items || [];
 
@@ -228,11 +233,17 @@ export const acceptCaseService = async (caseId, userId) => {
     return { success: false, message: "Agency not found for this user" };
   }
 
-  if (!Item.AssignedAgencyName) {
+  const assignedByName = Item.AssignedAgencyName
+  const assignedById   = Item.AssignedAgencyID
+
+  if (!assignedByName && !assignedById) {
     return { success: false, message: "This case has not been assigned to any agency" };
   }
 
-  if (Item.AssignedAgencyName !== agencyItem.AgencyName) {
+  const matchByName = assignedByName && assignedByName === agencyItem.AgencyName
+  const matchById   = assignedById   && assignedById   === agencyItem.AgencyID
+
+  if (!matchByName && !matchById) {
     return { success: false, message: "Your agency is not assigned to this case" };
   }
 
@@ -255,14 +266,11 @@ export const acceptCaseService = async (caseId, userId) => {
   return { success: true, message: "Case accepted successfully", status: "IN_PROGRESS" };
 };
 
-// ปิดเคส: บันทึกรูปหลังทำงาน + summary
+// ปิดเคส: บันทึกรูปหลังทำงาน + summary + push LINE ไปหาผู้แจ้ง
 export const completeCaseService = async (caseId, imageKeyAfter, summary) => {
   const result = await dynamoDB.send(new UpdateCommand({
     TableName: TABLE_NAME,
-    Key: {
-      PK: `CASE#${caseId}`,
-      SK: "METADATA"
-    },
+    Key: { PK: `CASE#${caseId}`, SK: "METADATA" },
     UpdateExpression: "SET #status = :status, ImageKeyAfter = :imageKeyAfter, Summary = :summary, CompletedAt = :completedAt",
     ExpressionAttributeNames: { "#status": "status" },
     ExpressionAttributeValues: {
@@ -274,5 +282,23 @@ export const completeCaseService = async (caseId, imageKeyAfter, summary) => {
     ReturnValues: "ALL_NEW"
   }));
 
-  return result.Attributes;
+  const caseData = result.Attributes;
+
+  // Push LINE ไปหาผู้แจ้ง
+  const reporterLineId = caseData.userId || caseData.UserID;
+  if (reporterLineId) {
+    try {
+      let imageAfterUrl = null;
+      if (imageKeyAfter) {
+        const cmd = new GetObjectCommand({ Bucket: process.env.IMAGEBUCKET_BUCKET_NAME, Key: imageKeyAfter });
+        imageAfterUrl = await getSignedUrl(s3Client, cmd, { expiresIn: 3600 });
+      }
+      const msg = createCompletionFlexMessage(caseData, imageAfterUrl);
+      await pushLine(reporterLineId, [msg]);
+    } catch (err) {
+      console.error("LINE push to reporter failed:", err);
+    }
+  }
+
+  return caseData;
 };
