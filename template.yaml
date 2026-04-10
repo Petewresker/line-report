@@ -140,6 +140,12 @@ Resources:
                 type: aws_proxy
                 uri: !Sub arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${admin.Arn}/invocations
               responses: {}
+            delete:
+              x-amazon-apigateway-integration:
+                httpMethod: POST
+                type: aws_proxy
+                uri: !Sub arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${admin.Arn}/invocations
+              responses: {}
           /admin/me:
             get:
               x-amazon-apigateway-integration:
@@ -557,6 +563,12 @@ Resources:
           Properties:
             Path: /admin/users
             Method: POST
+            RestApiId: !Ref Api
+        ApiDELETEadminUsers:
+          Type: Api
+          Properties:
+            Path: /admin/users
+            Method: DELETE
             RestApiId: !Ref Api
         ApiGETadminMe:
           Type: Api

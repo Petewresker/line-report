@@ -1,5 +1,5 @@
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb'
-import { DynamoDBDocumentClient, GetCommand, UpdateCommand, PutCommand } from '@aws-sdk/lib-dynamodb'
+import { DynamoDBDocumentClient, GetCommand, UpdateCommand, PutCommand, DeleteCommand } from '@aws-sdk/lib-dynamodb'
 import { S3Client, GetObjectCommand } from '@aws-sdk/client-s3'
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
 import { randomUUID } from 'crypto'
@@ -41,6 +41,17 @@ async function forwardOneCase(tableName, caseId, agencyId, now) {
     if (err.name === 'ConditionalCheckFailedException') return null
     throw err
   }
+}
+
+export const deleteAdminService = async (lineUserId) => {
+  const tableName = process.env.TABLE_TABLE_NAME
+  const result = await client.send(new DeleteCommand({
+    TableName: tableName,
+    Key: { PK: `ADMIN#${lineUserId}`, SK: 'METADATA' },
+    ConditionExpression: 'attribute_exists(PK)',
+    ReturnValues: 'ALL_OLD',
+  }))
+  return result.Attributes ?? null
 }
 
 export const createAdminService = async (lineUserId, name) => {
