@@ -4,7 +4,7 @@ import jwt from 'jsonwebtoken';
 
 export function fromCookie(headers) {
 
-  const cookieHeader = headers.อCookie || headers.cookie || '';
+  const cookieHeader = headers.Cookie || headers.cookie || '';
   if (cookieHeader) {
     const cookies = cookie.parse(cookieHeader);
     if (cookies.token) {
