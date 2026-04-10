@@ -86,11 +86,13 @@ export default function AdminDashboard() {
           if (!liff.isLoggedIn()) { liff.login(); return }
           const profile = await liff.getProfile()
           userId = profile.userId
+          console.log("Seek for IDToken : ",liff.getIDToken());
         }
 
         const res = await fetch(`${API}/admin/me`, {
           headers: { userid: userId },
         })
+
         if (!res.ok) {
           setAuthError('คุณไม่มีสิทธิ์เข้าใช้งานระบบนี้')
           setAuthLoading(false)
