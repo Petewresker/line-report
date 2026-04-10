@@ -1,4 +1,4 @@
-import { assignReportService, createAdminService, getAdminByUserIdService } from "./service.js";
+import { assignReportService, createAdminService, deleteAdminService, getAdminByUserIdService } from "./service.js";
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -32,6 +32,26 @@ export const handleCreateAdmin = async (event) => {
     return { statusCode: 201, headers: CORS_HEADERS, body: JSON.stringify({ message: "Admin created", admin }) }
   } catch (error) {
     console.error("handleCreateAdmin error:", error)
+    return internalError()
+  }
+}
+
+export const handleDeleteAdmin = async (event) => {
+  try {
+    const body = typeof event.body === 'string' ? JSON.parse(event.body || '{}') : (event.body || {})
+    const { lineUserId } = body
+
+    if (!lineUserId) {
+      return { statusCode: 400, headers: CORS_HEADERS, body: JSON.stringify({ message: "lineUserId is required" }) }
+    }
+
+    const deleted = await deleteAdminService(lineUserId)
+    if (!deleted) {
+      return { statusCode: 404, headers: CORS_HEADERS, body: JSON.stringify({ message: "Admin not found" }) }
+    }
+    return { statusCode: 200, headers: CORS_HEADERS, body: JSON.stringify({ message: "Admin deleted" }) }
+  } catch (error) {
+    console.error("handleDeleteAdmin error:", error)
     return internalError()
   }
 }
