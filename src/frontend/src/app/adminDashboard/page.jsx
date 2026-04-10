@@ -73,13 +73,23 @@ export default function AdminDashboard() {
   useEffect(() => {
     const init = async () => {
       try {
-        await liff.init({ liffId: process.env.NEXT_PUBLIC_LIFF_ID_PROBLEM_SEEKER })
-        if (!liff.isLoggedIn()) { liff.login(); return }
+        const devUserId = process.env.NEXT_PUBLIC_DEV_USER_ID
+        const isLocalhost = typeof window !== 'undefined' && window.location.hostname === 'localhost'
 
-        const profile = await liff.getProfile()
+        let userId
+
+        if (isLocalhost && devUserId) {
+          // Bypass LIFF on localhost — use dev userId from env
+          userId = devUserId
+        } else {
+          await liff.init({ liffId: process.env.NEXT_PUBLIC_LIFF_ID_PROBLEM_SEEKER })
+          if (!liff.isLoggedIn()) { liff.login(); return }
+          const profile = await liff.getProfile()
+          userId = profile.userId
+        }
 
         const res = await fetch(`${API}/admin/me`, {
-          headers: { userid: profile.userId },
+          headers: { userid: userId },
         })
         if (!res.ok) {
           setAuthError('คุณไม่มีสิทธิ์เข้าใช้งานระบบนี้')
@@ -88,7 +98,7 @@ export default function AdminDashboard() {
         }
 
         const { admin } = await res.json()
-        setAuth({ userId: profile.userId, name: admin.Name })
+        setAuth({ userId, name: admin.Name })
       } catch (err) {
         setAuthError(err?.message ?? 'LIFF initialization failed')
       } finally {
