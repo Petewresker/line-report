@@ -1,5 +1,5 @@
 // admin/index.js
-import { assignReport, handleCreateAdmin, handleGetMyAdmin } from './handler.js'
+import { assignReport, handleCreateAdmin, handleDeleteAdmin, handleGetMyAdmin } from './handler.js'
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
@@ -13,6 +13,10 @@ export const handler = async (event) => {
 
     if (httpMethod === 'POST' && path === '/admin/users') {
       return handleCreateAdmin(event)
+    }
+
+    if (httpMethod === 'DELETE' && path === '/admin/users') {
+      return handleDeleteAdmin(event)
     }
 
     if (httpMethod === 'GET' && path === '/admin/me') {
