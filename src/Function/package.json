@@ -1,7 +1,4 @@
 {
   "name": "function",
-  "version": "1.0.0",
-  "dependencies": {
-    "ngeohash": "^0.6.3"
-  }
+  "version": "1.0.0"
 }

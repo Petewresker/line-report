@@ -36,6 +36,9 @@ export const getCasesByUserService = async (userId) => {
     }))
   )
 
+  console.log("Debugger");
+  console.log("Query result:", JSON.stringify(items, undefined, 2));
+
   return items
 }
 

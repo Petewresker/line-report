@@ -2,9 +2,9 @@ Transform: AWS::Serverless-2016-10-31
 Globals:
   Api:
     Cors:
-      AllowMethods: "'GET,POST,PUT,DELETE,OPTIONS'"
-      AllowHeaders: "'Content-Type,Authorization,userid,agencyid,role'"
-      AllowOrigin: "'*'"
+      AllowMethods: '''GET,POST,PUT,DELETE,OPTIONS'''
+      AllowHeaders: '''Content-Type,Authorization,userid,agencyid,role'''
+      AllowOrigin: '''*'''
 Resources:
   Api:
     Type: AWS::Serverless::Api

@@ -141,10 +141,10 @@ function buildCaseBubble(c) {
       type: "box",
       layout: "horizontal",
       contents: [
-        { type: "text", text: c.title ?? "-", style: "italic", weight: "bold", decoration: "underline", wrap: true },
+        { type: "text", text: c.title || "-", style: "italic", weight: "bold", decoration: "underline", wrap: true },
       ],
     },
-    { type: "text", text: c.description ?? "-", size: "md", wrap: true },
+    { type: "text", text: c.description || "-", size: "md", wrap: true },
   ];
 
   if (isFinished && c.Summary) {

@@ -18,6 +18,7 @@ export const handler = async (event) => {
     } else if (text === "รายการแจ้งเหตุ") {
       await handleListCases(replyToken, userId);
     } else if (text === "สําหรับเจ้าหน้าที่") {
+      console.log("This match handelist cases");
       await handleAgencyInfo(replyToken);
     } else if (text === "myid") {
       await replyLine(replyToken, [{ type: "text", text: `Your LINE User ID: ${userId}` }]);
