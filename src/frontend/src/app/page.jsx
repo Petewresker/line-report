@@ -165,7 +165,11 @@ export default function Home() {
         {/* Debug Refresh Button */}
         <div className="flex justify-end mb-2">
           <button
-            onClick={() => window.location.reload()}
+            onClick={() => {
+              localStorage.clear();
+              sessionStorage.clear();
+              window.location.reload();
+            }}
             className="text-xs text-gray-400 border border-gray-300 rounded px-2 py-1 hover:bg-gray-100 active:scale-95"
           >
             Debug Reload
