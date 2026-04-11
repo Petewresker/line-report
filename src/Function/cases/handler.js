@@ -1,10 +1,10 @@
 // handler.js - validate แล้วเรียก service
-import { editCaseService, getCasesByUserService, getAllCasesService, getAllCasesAdminService, createCaseService, postCaseService, getPresignedUrlService, HostspotService, trendAnalysisService, ResolutionTime, deleteCasesByUserService, monthlyReportService, deleteAllCasesService } from './service.js'
+import { editCaseService, getCasesByUserService, getAllCasesService, getAllCasesAdminService, createCaseService, postCaseService, getPresignedUrlService, HostspotService, trendAnalysisService, ResolutionTime, deleteCasesByUserService, monthlyReportService, deleteAllCasesService, deleteByCaseIdService } from './service.js'
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'Content-Type,X-Amz-Date,Authorization,X-Api-Key',
-  'Access-Control-Allow-Methods': 'GET,POST,OPTIONS',
+  'Access-Control-Allow-Methods': 'GET,POST,OPTIONS,DELETE',
 }
 
 export const getPresignedUrl = async (event) => {
@@ -153,4 +153,36 @@ export const deleteAllCases = async () => {
   }
 }
 
+// DELETE /cases/{caseId}
+export const deleteByCaseId = async (event) => {
+  try {
+    const { caseId } = event.pathParameters || {}
 
+    if (!caseId) {
+      return {
+        statusCode: 400,
+        headers: CORS_HEADERS,
+        body: JSON.stringify({ error: 'caseId is required' }),
+      }
+    }
+
+    const result = await deleteByCaseIdService(caseId)
+
+    return {
+      statusCode: 200,
+      headers: CORS_HEADERS,
+      body: JSON.stringify(result),
+    }
+
+  } catch (error) {
+    console.error('deleteCaseById error:', error)
+    return {
+      statusCode: 500,
+      headers: CORS_HEADERS,
+      body: JSON.stringify({
+        error: 'Failed to delete case',
+        message: error.message,
+      }),
+    }
+  }
+}

@@ -366,3 +366,18 @@ export const ResolutionTime = async () =>{
   return Resolution;
 };
 
+// DELETE /cases/{caseId}
+export const deleteByCaseIdService = async (caseId) => {
+  await client.send(new DeleteCommand({
+    TableName: process.env.TABLE_TABLE_NAME,
+    Key: {
+      PK: `CASE#${caseId}`,
+      SK: 'METADATA',
+    },
+  }))
+
+  return {
+    message: 'Case deleted successfully',
+    caseId,
+  }
+}
