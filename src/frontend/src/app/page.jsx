@@ -212,7 +212,7 @@ export default function Home() {
 
         {/* Photo */}
         <div className="border-b border-gray-200 mt-3 pb-3 mb-4">
-          <h2 className="text-xl font-semibold text-gray-800">Take=</h2>
+          <h2 className="text-xl font-semibold text-gray-800">Take a photo</h2>
         </div>
 
         <input
