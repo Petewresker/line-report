@@ -57,6 +57,7 @@ export default function AdminDashboard() {
   const [auth, setAuth] = useState(null)
   const [authLoading, setAuthLoading] = useState(true)
   const [authError, setAuthError] = useState(null)
+  const [idToken, setIdToken] = useState(null)
 
   const [activeFilter, setActiveFilter] = useState('ทั้งหมด')
   const [searchQuery, setSearchQuery] = useState('')
@@ -86,7 +87,9 @@ export default function AdminDashboard() {
           if (!liff.isLoggedIn()) { liff.login(); return }
           const profile = await liff.getProfile()
           userId = profile.userId
-          console.log("Seek for IDToken : ",liff.getIDToken());
+          const token = liff.getIDToken()
+          setIdToken(token)
+          console.log("Seek for IDToken : ", token);
         }
 
         const res = await fetch(`${API}/admin/me`, {
@@ -109,6 +112,18 @@ export default function AdminDashboard() {
     }
     init()
   }, [])
+
+  // ── IDToken auto-refresh ──────────────────────────────────────────────────
+  useEffect(() => {
+    if (!idToken) return
+    try {
+      const payload = JSON.parse(atob(idToken.split('.')[1]))
+      const msUntilExpiry = payload.exp * 1000 - Date.now()
+      if (msUntilExpiry <= 0) { setIdToken(liff.getIDToken()); return }
+      const timer = setTimeout(() => setIdToken(liff.getIDToken()), msUntilExpiry - 30_000)
+      return () => clearTimeout(timer)
+    } catch { /* token ไม่ใช่ JWT standard ก็ข้ามไป */ }
+  }, [idToken])
 
   // ── Fetch Cases (หลัง auth) ────────────────────────────────────────────────
   useEffect(() => {
