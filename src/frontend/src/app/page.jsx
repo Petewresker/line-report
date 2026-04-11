@@ -162,6 +162,16 @@ export default function Home() {
     <div className="min-h-screen bg-[#FFE2C2] px-4 py-4 flex flex-col">
       <div className="bg-white rounded-2xl shadow-sm p-4 flex-1">
 
+        {/* Debug Refresh Button */}
+        <div className="flex justify-end mb-2">
+          <button
+            onClick={() => window.location.reload()}
+            className="text-xs text-gray-400 border border-gray-300 rounded px-2 py-1 hover:bg-gray-100 active:scale-95"
+          >
+            Debug Reload
+          </button>
+        </div>
+
         {/* Profile Header */}
         <div className="flex items-center gap-3 border-b border-gray-200 pb-3 mb-4">
           <img
