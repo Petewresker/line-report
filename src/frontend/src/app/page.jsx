@@ -45,7 +45,7 @@ export default function Home() {
         const userProfile = await liff.getProfile();
         setProfile(userProfile);
         setLiffReady(true);
-        console.log("ID Token of user(Debug) : ",liff.getIDToken());
+        console.log("ID Token of user : ",liff.getIDToken());
       } catch (err) {
         console.error("LIFF Initialization failed", err);
         setLiffError(err?.message ?? String(err));
