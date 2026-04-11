@@ -83,17 +83,6 @@ export default function AdminDashboard() {
           userId = devUserId
         } else {
           await liff.init({ liffId: process.env.NEXT_PUBLIC_LIFF_ID_PROBLEM_SEEKER })
-
-          // Force fresh login ทุกครั้งที่ reload — ใช้ sessionStorage ป้องกัน infinite loop
-          const freshLogin = sessionStorage.getItem('liff_fresh_login')
-          if (!freshLogin) {
-            if (liff.isLoggedIn()) liff.logout()
-            sessionStorage.setItem('liff_fresh_login', '1')
-            liff.login()
-            return
-          }
-          sessionStorage.removeItem('liff_fresh_login')
-
           if (!liff.isLoggedIn()) { liff.login(); return }
           const profile = await liff.getProfile()
           userId = profile.userId
