@@ -217,6 +217,13 @@ Resources:
                 type: aws_proxy
                 uri: !Sub arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${cases.Arn}/invocations
               responses: {}
+          /cases/{caseId}:
+             delete:
+              x-amazon-apigateway-integration:
+                httpMethod: POST
+                type: aws_proxy
+                uri: !Sub arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${cases.Arn}/invocations
+                responses: {}
       EndpointConfiguration: REGIONAL
       TracingEnabled: true
 
@@ -451,6 +458,12 @@ Resources:
           Type: Api
           Properties:
             Path: /cases/all
+            Method: DELETE
+            RestApiId: !Ref Api
+        ApiDELETEByCaseId:
+          Type: Api
+          Properties:
+            Path: /cases/{caseId}
             Method: DELETE
             RestApiId: !Ref Api
       Policies:
