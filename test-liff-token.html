@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LINE ID Token Getter</title>
+  <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 800px;
+      margin: 50px auto;
+      padding: 20px;
+      background: #f5f5f5;
+    }
+    .container {
+      background: white;
+      padding: 30px;
+      border-radius: 10px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    h1 {
+      color: #06c755;
+      margin-bottom: 20px;
+    }
+    button {
+      background: #06c755;
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      font-size: 16px;
+      border-radius: 5px;
+      cursor: pointer;
+      margin: 10px 5px;
+    }
+    button:hover {
+      background: #05b04b;
+    }
+    button:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+    }
+    #result {
+      background: #f8f8f8;
+      padding: 15px;
+      border-radius: 5px;
+      margin-top: 20px;
+      word-break: break-all;
+      font-family: monospace;
+      font-size: 12px;
+      max-height: 300px;
+      overflow-y: auto;
+    }
+    .status {
+      padding: 10px;
+      margin: 10px 0;
+      border-radius: 5px;
+    }
+    .success {
+      background: #d4edda;
+      color: #155724;
+    }
+    .error {
+      background: #f8d7da;
+      color: #721c24;
+    }
+    .info {
+      background: #d1ecf1;
+      color: #0c5460;
+    }
+    .copy-btn {
+      background: #007bff;
+      font-size: 14px;
+      padding: 8px 16px;
+    }
+    .copy-btn:hover {
+      background: #0056b3;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🔑 LINE ID Token Getter</h1>
+    <p>ใช้สำหรับดึง LINE ID Token เพื่อทดสอบ API</p>
+    
+    <div id="status"></div>
+    
+    <div>
+      <button id="loginBtn" onclick="login()">Login with LINE</button>
+      <button id="getTokenBtn" onclick="getToken()" disabled>Get ID Token</button>
+      <button id="testApiBtn" onclick="testAPI()" disabled>Test API</button>
+    </div>
+    
+    <div id="result"></div>
+  </div>
+
+  <script>
+    // เปลี่ยน LIFF ID ตรงนี้
+    const LIFF_ID = '2009444975-WqhF6Iws';
+    
+    // เปลี่ยน API URL ตรงนี้
+    const API_URL = 'https://xhvpblmnhi.execute-api.us-east-1.amazonaws.com/Prod';
+    
+    let currentToken = null;
+
+    // Initialize LIFF
+    window.onload = function() {
+      showStatus('กำลังเริ่มต้น LIFF...', 'info');
+      
+      liff.init({ liffId: LIFF_ID })
+        .then(() => {
+          if (liff.isLoggedIn()) {
+            showStatus('✅ Login สำเร็จ!', 'success');
+            document.getElementById('loginBtn').disabled = true;
+            document.getElementById('getTokenBtn').disabled = false;
+            document.getElementById('testApiBtn').disabled = false;
+          } else {
+            showStatus('กรุณา Login ด้วย LINE', 'info');
+          }
+        })
+        .catch((err) => {
+          showStatus('❌ Error: ' + err.message, 'error');
+        });
+    };
+
+    function login() {
+      liff.login();
+    }
+
+    function getToken() {
+      try {
+        currentToken = liff.getIDToken();
+        
+        if (currentToken) {
+          const profile = liff.getDecodedIDToken();
+          
+          let output = '=== LINE ID TOKEN ===\n\n';
+          output += currentToken + '\n\n';
+          output += '=== DECODED INFO ===\n\n';
+          output += JSON.stringify(profile, null, 2);
+          
+          document.getElementById('result').textContent = output;
+          showStatus('✅ ได้ ID Token แล้ว!', 'success');
+          
+          // Add copy button
+          const copyBtn = document.createElement('button');
+          copyBtn.textContent = '📋 Copy Token';
+          copyBtn.className = 'copy-btn';
+          copyBtn.onclick = () => copyToken(currentToken);
+          
+          const resultDiv = document.getElementById('result');
+          resultDiv.parentNode.insertBefore(copyBtn, resultDiv);
+        } else {
+          showStatus('❌ ไม่สามารถดึง ID Token ได้', 'error');
+        }
+      } catch (err) {
+        showStatus('❌ Error: ' + err.message, 'error');
+      }
+    }
+
+    function copyToken(token) {
+      navigator.clipboard.writeText(token).then(() => {
+        showStatus('✅ Copy Token สำเร็จ!', 'success');
+      }).catch(() => {
+        showStatus('❌ Copy ไม่สำเร็จ', 'error');
+      });
+    }
+
+    async function testAPI() {
+      if (!currentToken) {
+        showStatus('❌ กรุณากด "Get ID Token" ก่อน', 'error');
+        return;
+      }
+
+      showStatus('กำลังทดสอบ API...', 'info');
+
+      try {
+        const response = await fetch(`${API_URL}/auth/login`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          credentials: 'include',
+          body: JSON.stringify({ idToken: currentToken })
+        });
+
+        const data = await response.json();
+        
+        let output = '=== API RESPONSE ===\n\n';
+        output += `Status: ${response.status}\n\n`;
+        output += JSON.stringify(data, null, 2);
+        
+        document.getElementById('result').textContent = output;
+        
+        if (response.ok) {
+          showStatus('✅ API Test สำเร็จ!', 'success');
+        } else {
+          showStatus('❌ API Test ล้มเหลว', 'error');
+        }
+      } catch (err) {
+        showStatus('❌ Error: ' + err.message, 'error');
+        document.getElementById('result').textContent = 'Error: ' + err.message;
+      }
+    }
+
+    function showStatus(message, type) {
+      const statusDiv = document.getElementById('status');
+      statusDiv.textContent = message;
+      statusDiv.className = 'status ' + type;
+    }
+  </script>
+</body>
+</html>
