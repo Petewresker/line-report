@@ -1,0 +1,10 @@
+{"timestamp":"00:00:10.198","source":"Server","level":"LOG","message":""}
+{"timestamp":"00:00:11.584","source":"Browser","level":"INFO","message":"%cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold"}
+{"timestamp":"00:00:11.655","source":"Browser","level":"ERROR","message":"LIFF Initialization failed {\"code\":\"INVALID_CONFIG\"}"}
+{"timestamp":"00:00:11.667","source":"Server","level":"ERROR","message":"[browser] \"LIFF Initialization failed\" \"\\u001b[31mError: liffId is necessary for liff.init()\\u001b[39m\\n\\u001b[31m    at new Promise (<anonymous>)\\u001b[39m\" \"\\u001b[2m(src/app/page.jsx:35:17)\\u001b[22m\""}
+{"timestamp":"00:00:11.667","source":"Browser","level":"ERROR","message":"LIFF Initialization failed \"\\u001b[31mError: liffId is necessary for liff.init()\\u001b[39m\\n\\u001b[31m    at new Promise (<anonymous>)\\u001b[39m\" \"\\u001b[2m(src/app/page.jsx:35:17)\\u001b[22m\""}
+{"timestamp":"00:00:23.358","source":"Browser","level":"INFO","message":"%cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold"}
+{"timestamp":"00:00:27.977","source":"Browser","level":"INFO","message":"%cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold"}
+{"timestamp":"00:00:28.019","source":"Browser","level":"ERROR","message":"LIFF Initialization failed {\"code\":\"INVALID_CONFIG\"}"}
+{"timestamp":"00:00:28.020","source":"Server","level":"ERROR","message":"[browser] \"LIFF Initialization failed\" \"\\u001b[31mError: liffId is necessary for liff.init()\\u001b[39m\\n\\u001b[31m    at new Promise (<anonymous>)\\u001b[39m\" \"\\u001b[2m(src/app/page.jsx:35:17)\\u001b[22m\""}
+{"timestamp":"00:00:28.020","source":"Browser","level":"ERROR","message":"LIFF Initialization failed \"\\u001b[31mError: liffId is necessary for liff.init()\\u001b[39m\\n\\u001b[31m    at new Promise (<anonymous>)\\u001b[39m\" \"\\u001b[2m(src/app/page.jsx:35:17)\\u001b[22m\""}

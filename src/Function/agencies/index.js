@@ -42,7 +42,7 @@ export const handler = async (event) => {
 
     //==================================== DELETE ====================================
     if (httpMethod === "DELETE" && resource === "/agencies/all") { return await handleDeleteAllAgencies(); }
-    if (httpMethod === "DELETE" && resource === "/agencies/{agencyId}") { return await handleDeleteAgency(event);}
+    if (httpMethod === "POST" && resource === "/agencies/{agencyId}/reject") { return await handleDeleteAgency(event);}
 
     return {
       statusCode: 404,
