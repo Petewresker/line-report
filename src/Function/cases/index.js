@@ -14,21 +14,21 @@ export const handler = async (event) => {
     if (httpMethod === 'OPTIONS') return { statusCode: 200, headers: CORS_HEADERS, body: '' }
 
     //==================================== GET ====================================
-    if (httpMethod === 'GET' && path === '/cases/presigned-url') return getPresignedUrl(event)
-    if (httpMethod === 'GET' && path === '/cases')       return getCasesByUser(event)
-    if (httpMethod === 'GET' && path === '/cases/hotspots') return gethotspot()
-    if (httpMethod === 'GET' && path === '/cases/trends') return getTrends()
-    if (httpMethod === 'GET' && path === '/cases/resolution') return getResolution()
-    if (httpMethod === 'GET' && path === '/cases/monthly') return getMonthlyReport()
+    if (httpMethod === 'GET' && resource === '/cases/presigned-url') return getPresignedUrl(event)
+    if (httpMethod === 'GET' && resource === '/cases')       return getCasesByUser(event)
+    if (httpMethod === 'GET' && resource === '/cases/hotspots') return gethotspot()
+    if (httpMethod === 'GET' && resource === '/cases/trends') return getTrends()
+    if (httpMethod === 'GET' && resource === '/cases/resolution') return getResolution()
+    if (httpMethod === 'GET' && resource === '/cases/monthly') return getMonthlyReport()
 
     //==================================== POST ====================================  
-    if (httpMethod === 'POST' && path.includes('/edit')) return editCaseHandler(event)
-    if (httpMethod === 'POST' && path === '/cases') return createCase(event)
-    if (httpMethod === 'POST' && path === '/cases/mockpost') return seedMockCases()
+    if (httpMethod === 'POST' && resource === '/cases/{caseId}/edit') return editCaseHandler(event)
+    if (httpMethod === 'POST' && resource === '/cases') return createCase(event)
+    if (httpMethod === 'POST' && resource === '/cases/mockpost') return seedMockCases()
 
     //==================================== DELETE ====================================
-    if (httpMethod === 'DELETE' && path === '/cases/all') return deleteAllCases()
-    if (httpMethod === 'DELETE' && path === '/cases') return deleteCase(event)
+    if (httpMethod === 'DELETE' && resource === '/cases/all') return deleteAllCases()
+    if (httpMethod === 'DELETE' && resource === '/cases') return deleteCase(event)
     if (httpMethod === 'DELETE' && resource === '/cases/{caseId}') {return deleteByCaseId(event)}
 
     return {
