@@ -67,7 +67,7 @@ export const handler = async (event) => {
       return await handleDeleteAllAgencies();
     }
 
-    if (httpMethod === "DELETE" && path.match(/^\/agencies\/[^/]+$/)) {
+    if (httpMethod === "POST" && path.match(/^\/agencies\/[^/]+\/reject$/)) {
       return await handleDeleteAgency(event);
     }
 

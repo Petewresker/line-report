@@ -126,8 +126,8 @@ Resources:
                 type: aws_proxy
                 uri: !Sub arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${agencies.Arn}/invocations
               responses: {}
-          /agencies/{agencyId}:
-            delete:
+          /agencies/{agencyId}/reject:
+            post:
               x-amazon-apigateway-integration:
                 httpMethod: POST
                 type: aws_proxy
@@ -348,11 +348,11 @@ Resources:
             Path: /agencies/all
             Method: DELETE
             RestApiId: !Ref Api
-        ApiDELETEagenciesAgencyId:
+        ApiPOSTagenciesAgencyIdReject:
           Type: Api
           Properties:
-            Path: /agencies/{agencyId}
-            Method: DELETE
+            Path: /agencies/{agencyId}/reject
+            Method: POST
             RestApiId: !Ref Api
   agenciesLogGroup:
     Type: AWS::Logs::LogGroup
