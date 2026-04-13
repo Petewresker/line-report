@@ -14,6 +14,7 @@ const internalError = () => {
   };
 };
 
+// POST /admin/users
 export const handleCreateAdmin = async (event) => {
   try {
     const body = typeof event.body === 'string' ? JSON.parse(event.body || '{}') : (event.body || {})
@@ -36,6 +37,7 @@ export const handleCreateAdmin = async (event) => {
   }
 }
 
+// DELETE /admin/users
 export const handleDeleteAdmin = async (event) => {
   try {
     const body = typeof event.body === 'string' ? JSON.parse(event.body || '{}') : (event.body || {})
@@ -56,6 +58,7 @@ export const handleDeleteAdmin = async (event) => {
   }
 }
 
+// GET /admin/me
 export const handleGetMyAdmin = async (event) => {
   try {
     const headers = Object.fromEntries(Object.entries(event.headers || {}).map(([k, v]) => [k.toLowerCase(), v]))
@@ -77,6 +80,8 @@ export const handleGetMyAdmin = async (event) => {
   }
 }
 
+// POST /admin/cases/{caseId}/assign
+// POST /admin/cases/{caseId}/agencies/{agencyId}
 export const assignReport = async (event) => {
   try {
     const { caseId } = event;
