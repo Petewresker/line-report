@@ -1,0 +1,27 @@
+services:
+  dynamodb-local:
+    image: amazon/dynamodb-local:latest
+    container_name: incident-dynamodb-local
+    command: "-jar DynamoDBLocal.jar -sharedDb -inMemory"
+    ports:
+      - "8000:8000"
+
+  dynamodb-init:
+    image: amazon/aws-cli:latest
+    container_name: incident-dynamodb-init
+    depends_on:
+      - dynamodb-local
+    environment:
+      AWS_ACCESS_KEY_ID: local
+      AWS_SECRET_ACCESS_KEY: local
+      AWS_DEFAULT_REGION: us-east-1
+    volumes:
+      - ./qurreyStructure.json:/init/qurreyStructure.json:ro
+    entrypoint:
+      - /bin/sh
+      - -c
+      - >
+          until aws dynamodb list-tables --endpoint-url http://dynamodb-local:8000 >/dev/null 2>&1; do sleep 2; done;
+          aws dynamodb describe-table --table-name IncidentTable --endpoint-url http://dynamodb-local:8000 >/dev/null 2>&1 ||
+          aws dynamodb create-table --cli-input-json file:///init/qurreyStructure.json --endpoint-url http://dynamodb-local:8000
+    restart: "no"
