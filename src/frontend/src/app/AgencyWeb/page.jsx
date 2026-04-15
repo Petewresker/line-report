@@ -2,6 +2,7 @@
 
 import { useRef, useState, useEffect } from "react";
 import liff from "@line/liff";
+import { authenticate, verify } from "../utils/authenkit";
 
 const STATUS_BADGE = {
   FORWARD:     { bg: "#FEF3C7", text: "#92400E", label: "รอรับงาน",        dot: "#F59E0B" },
@@ -71,6 +72,10 @@ const API = process.env.NEXT_PUBLIC_API_URL;
 
 export default function AgencyWeb() {
   const [auth, setAuth] = useState(null);
+  const [authLoading, setAuthLoading] = useState(true);
+  const [authError, setAuthError] = useState(null);
+  const [showUnauthorized, setShowUnauthorized] = useState(false);
+
   const [cases, setCases] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -95,27 +100,30 @@ export default function AgencyWeb() {
 
         if (isLocalhost && devUserId) {
           userId = devUserId;
-        } else {
-          await liff.init({ liffId: process.env.NEXT_PUBLIC_LIFF_ID_AGENCYWEB });
-          if (!liff.isLoggedIn()) { liff.login(); return; }
-          const profile = await liff.getProfile();
-          userId = profile.userId;
-        }
-
-        const meRes = await fetch(`${API}/agencies/me`, {
-          headers: { userid: userId },
-        });
-        if (!meRes.ok) {
-          setError("ไม่พบข้อมูลหน่วยงาน กรุณาลงทะเบียนก่อน");
-          setLoading(false);
+          setAuth({ userId });
           return;
         }
-        const { agencyId } = await meRes.json();
 
-        setAuth({ userId, agencyId });
+        await liff.init({ liffId: process.env.NEXT_PUBLIC_LIFF_ID_AGENCYWEB });
+        if (!liff.isLoggedIn()) { liff.login(); return; }
+
+        if (!localStorage.getItem("TU_Smart_Service JWT Token")) {
+          const profile = await liff.getProfile();
+          userId = profile.userId;
+          authenticate({ idToken: liff.getIDToken() });
+        } else {
+          const verifyData = await verify();
+          if (verifyData && ["agency"].includes(verifyData.user.role)) {
+            setAuth({ userId: verifyData.user.id, name: verifyData.user.name ,agencyId : verifyData.user.agencyId});
+          } else {
+            setShowUnauthorized(true);
+            setAuthLoading(false);
+          }
+        }
       } catch (err) {
-        setError(err?.message ?? "LIFF initialization failed");
-        setLoading(false);
+        setAuthError(err?.message ?? "LIFF initialization failed");
+      } finally {
+        setAuthLoading(false);
       }
     };
     init();
@@ -243,6 +251,40 @@ export default function AgencyWeb() {
     }
   };
 
+  // ── Auth Gates ────────────────────────────────────────────────────────────
+  if (showUnauthorized) {
+    return (
+      <div className="min-h-screen bg-[#FFE2C2] flex items-center justify-center">
+        <div className="bg-white rounded-2xl p-10 w-80 max-w-[90vw] flex flex-col items-center gap-4 text-center shadow-lg">
+          <div className="w-16 h-16 rounded-full bg-red-100 flex items-center justify-center">
+            <svg xmlns="http://www.w3.org/2000/svg" className="w-8 h-8 text-red-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" />
+            </svg>
+          </div>
+          <h2 className="text-lg font-bold text-gray-900">ไม่มีสิทธิ์เข้าถึง</h2>
+          <p className="text-sm text-gray-500 leading-relaxed">คุณไม่มีสิทธิ์เข้าใช้งานหน้านี้<br />กรุณาติดต่อผู้ดูแลระบบ</p>
+          <button onClick={() => window.history.back()} className="mt-2 px-8 py-2.5 rounded-xl bg-red-500 text-white text-sm font-semibold">ย้อนกลับ</button>
+        </div>
+      </div>
+    );
+  }
+
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-[#FFE2C2] flex items-center justify-center">
+        <p className="text-gray-400 text-sm">กำลังตรวจสอบสิทธิ์...</p>
+      </div>
+    );
+  }
+
+  if (authError) {
+    return (
+      <div className="min-h-screen bg-[#FFE2C2] flex items-center justify-center px-6">
+        <p className="text-red-400 text-sm text-center">{authError}</p>
+      </div>
+    );
+  }
+
   // ── Loading / Error ────────────────────────────────────────────────────────
   if (loading) {
     return (
@@ -302,7 +344,7 @@ export default function AgencyWeb() {
           {/* Title + Badge */}
           <div className="flex items-start justify-between gap-2 mb-1">
             <h2 className="text-base font-bold text-gray-900 flex-1">{selectedGroup.title}</h2>
-            <span className="text-xs px-2 py-1 rounded-lg flex-shrink-0 font-medium"
+            <span className="text-xs px-2 py-1 rounded-lg shrink-0 font-medium"
               style={{ backgroundColor: badge.bg, color: badge.text }}>
               {badge.label}
             </span>
@@ -328,11 +370,11 @@ export default function AgencyWeb() {
           <div className="mb-5">
             <h3 className="text-sm font-bold text-gray-800 mb-2">ตำแหน่ง</h3>
             <div className="flex items-center gap-2 text-sm text-gray-600">
-              <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 text-gray-400 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 text-gray-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 0 1 18 0z" /><circle cx="12" cy="10" r="3" />
               </svg>
               <span>{selectedGroup.lat}, {selectedGroup.lon}</span>
-              <a href={`https://www.google.com/maps?q=${selectedGroup.lat},${selectedGroup.lon}`} target="_blank" rel="noopener noreferrer" className="text-blue-500 flex-shrink-0">
+              <a href={`https://www.google.com/maps?q=${selectedGroup.lat},${selectedGroup.lon}`} target="_blank" rel="noopener noreferrer" className="text-blue-500 shrink-0">
                 <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" /><polyline points="15 3 21 3 21 9" /><line x1="10" y1="14" x2="21" y2="3" />
                 </svg>
@@ -352,7 +394,7 @@ export default function AgencyWeb() {
                       <p className="text-xs font-medium text-gray-700 truncate">{c.caseId}</p>
                       <p className="text-xs text-gray-400">{formatDate(c.createdAt)} {formatTime(c.createdAt)}</p>
                     </div>
-                    <span className="text-xs px-2 py-0.5 rounded-lg font-medium flex-shrink-0 ml-2"
+                    <span className="text-xs px-2 py-0.5 rounded-lg font-medium shrink-0 ml-2"
                       style={{ backgroundColor: cb.bg, color: cb.text }}>
                       {cb.label}
                     </span>
@@ -507,7 +549,7 @@ export default function AgencyWeb() {
       <div className="flex items-center gap-2 px-4 mb-3">
         <div className="flex items-center gap-2 px-3 py-2 rounded-xl flex-1"
           style={{ backgroundColor: "#F5F5F5", border: "1px solid #E0E0E0" }}>
-          <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 text-gray-400 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 text-gray-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
           </svg>
           <input type="text" placeholder="ค้นหา..." value={search}
@@ -553,7 +595,7 @@ export default function AgencyWeb() {
                     </span>
                   </div>
                 </div>
-                <div className="flex-shrink-0 pt-1">
+                <div className="shrink-0 pt-1">
                   <div className="w-3 h-3 rounded-full" style={{ backgroundColor: badge.dot }} />
                 </div>
               </div>
