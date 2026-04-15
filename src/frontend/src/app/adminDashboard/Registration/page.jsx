@@ -55,8 +55,8 @@ export default function RegistrationPage() {
   const handleReject = async (agencyId) => {
     setActionLoading(true)
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/agencies/${agencyId}`, {
-        method: 'DELETE',
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/agencies/${agencyId}/reject`, {
+        method: 'POST',
       })
       if (!res.ok) throw new Error(`Server error: ${res.status}`)
       const remaining = items.filter((item) => item.AgencyID !== agencyId)
