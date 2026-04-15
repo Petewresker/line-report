@@ -9,34 +9,30 @@ const CORS_HEADERS = {
 
 export const handler = async (event) => {
   try {
-    const { httpMethod, path, pathParameters } = event
+    const { httpMethod, resource, pathParameters } = event
 
-    if (httpMethod === 'POST' && path === '/admin/users') {
-      return handleCreateAdmin(event)
-    }
+    // ===================================== GET ====================================
+    if (httpMethod === 'GET' && resource === '/admin/me') { return handleGetMyAdmin(event) }
 
-    if (httpMethod === 'DELETE' && path === '/admin/users') {
-      return handleDeleteAdmin(event)
-    }
-
-    if (httpMethod === 'GET' && path === '/admin/me') {
-      return handleGetMyAdmin(event)
-    }
-
-    if (httpMethod === 'POST' && path.match(/^\/admin\/cases\/[^/]+\/assign$/)) {
+    // ===================================== POST ====================================
+    if (httpMethod === 'POST' && resource === '/admin/users') { return handleCreateAdmin(event) }
+    if (httpMethod === 'POST' && resource === '/admin/cases/{caseId}/assign') {
       const { caseId } = pathParameters || {}
       return assignReport({ ...event, caseId })
     }
 
-    if (httpMethod === 'POST' && path.includes('/admin/cases') && path.includes('/agencies')) {
+    if (httpMethod === 'POST' && resource === '/admin/cases/{caseId}/agencies/{agencyId}') {
       const { caseId } = pathParameters || {}
       return assignReport({ ...event, caseId })
     }
+
+    // ===================================== DELETE ====================================
+    if (httpMethod === 'DELETE' && resource === '/admin/users') { return handleDeleteAdmin(event) }
 
     return {
       statusCode: 404,
       headers: CORS_HEADERS,
-      body: JSON.stringify({ error: 'Not found', path, httpMethod }),
+      body: JSON.stringify({ error: 'Not found', resource, httpMethod }),
     }
   } catch (error) {
     console.error('Unhandled error:', error)
