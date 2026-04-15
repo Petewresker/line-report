@@ -1,25 +1,71 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import liff from '@line/liff'
+import { AlertCircle } from 'lucide-react'
 import Navbar from '../../components/Navbar'
 import Sidebar from '../../components/Sidebar'
+import { authenticate, verify } from '../../utils/authenkit'
 
 export default function RegistrationPage() {
+  const [auth, setAuth] = useState(null)
+  const [authLoading, setAuthLoading] = useState(true)
+  const [authError, setAuthError] = useState(null)
+  const [showUnauthorized, setShowUnauthorized] = useState(false)
+
   const [items, setItems] = useState([])
   const [selected, setSelected] = useState(null)
   const [lightbox, setLightbox] = useState(false)
   const [loading, setLoading] = useState(true)
   const [actionLoading, setActionLoading] = useState(false)
 
+  // ── LIFF Init + Admin Check ────────────────────────────────────────────────
   useEffect(() => {
-    fetchAgencies()
+    const init = async () => {
+      try {
+        const devUserId = process.env.NEXT_PUBLIC_DEV_USER_ID
+        const isLocalhost = typeof window !== 'undefined' && window.location.hostname === 'localhost'
+
+        if (isLocalhost && devUserId) {
+          setAuth({ userId: devUserId, name: 'Dev User' })
+          return
+        }
+
+        await liff.init({ liffId: process.env.NEXT_PUBLIC_LIFF_ID_PROBLEM_SEEKER })
+        if (!liff.isLoggedIn()) { liff.login(); return }
+
+        if (!localStorage.getItem('TU_Smart_Service JWT Token')) {
+          const payload = { idToken: liff.getIDToken() }
+          authenticate(payload)
+        } else {
+          const verifyData = await verify()
+          if (verifyData && ['admin'].includes(verifyData.user.role)) {
+            setAuth({ userId: verifyData.user.id, name: verifyData.user.name })
+          } else {
+            setShowUnauthorized(true)
+            setAuthLoading(false)
+          }
+        }
+      } catch (err) {
+        setAuthError(err?.message ?? 'LIFF initialization failed')
+      } finally {
+        setAuthLoading(false)
+      }
+    }
+    init()
   }, [])
+
+  useEffect(() => {
+    if (!auth) return
+    fetchAgencies()
+  }, [auth])
 
   useEffect(() => {
     const onKey = (e) => { if (e.key === 'Escape') setLightbox(false) }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [])
+
 
   const fetchAgencies = async () => {
     setLoading(true)
@@ -73,9 +119,40 @@ export default function RegistrationPage() {
   const statusColor = { ACTIVE: '#10B981' }
   const statusBg   = { ACTIVE: '#D1FAE5' }
 
+  if (showUnauthorized) {
+    return (
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#FFE2C2' }}>
+        <div style={{ background: '#fff', borderRadius: '20px', padding: '2.5rem 2rem', width: '340px', maxWidth: '90vw', boxShadow: '0 8px 32px rgba(0,0,0,0.15)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem', textAlign: 'center' }}>
+          <div style={{ width: '64px', height: '64px', borderRadius: '50%', background: '#FEE2E2', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <AlertCircle size={32} color="#EF4444" />
+          </div>
+          <h2 style={{ fontSize: '1.15rem', fontWeight: '700', color: '#111', margin: 0 }}>ไม่มีสิทธิ์เข้าถึง</h2>
+          <p style={{ fontSize: '0.875rem', color: '#666', lineHeight: '1.6', margin: 0 }}>คุณไม่มีสิทธิ์เข้าใช้งานหน้านี้<br />กรุณาติดต่อผู้ดูแลระบบ</p>
+          <button onClick={() => window.history.back()} style={{ marginTop: '0.5rem', padding: '0.65rem 2rem', borderRadius: '10px', border: 'none', background: '#EF4444', color: '#fff', fontSize: '0.9rem', fontWeight: '600', cursor: 'pointer' }}>ย้อนกลับ</button>
+        </div>
+      </div>
+    )
+  }
+
+  if (authLoading) {
+    return (
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#FFE2C2' }}>
+        <p style={{ color: '#aaa', fontSize: '0.9rem' }}>กำลังตรวจสอบสิทธิ์...</p>
+      </div>
+    )
+  }
+
+  if (authError) {
+    return (
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#FFE2C2', padding: '2rem' }}>
+        <p style={{ color: '#EF4444', fontSize: '0.9rem', textAlign: 'center' }}>{authError}</p>
+      </div>
+    )
+  }
+
   return (
     <div style={{ minHeight: '100vh', background: '#f5f5f5', display: 'flex', flexDirection: 'column' }}>
-      <Navbar accountName="Johny Eve" />
+      <Navbar accountName={auth?.name ?? 'Admin'} />
       <div style={{ display: 'flex', flex: 1 }}>
         <Sidebar />
         <main style={{ flex: 1, padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem', overflow: 'hidden' }}>
