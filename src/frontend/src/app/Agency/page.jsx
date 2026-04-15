@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import liff from "@line/liff";
+import { authenticate, verify } from "../utils/authenkit";
 
 export default function AgencyRegister() {
   const [profile, setProfile] = useState(null);
@@ -39,14 +40,24 @@ export default function AgencyRegister() {
 
         await liff.init({ liffId: process.env.NEXT_PUBLIC_LIFF_ID_AGENCY });
 
-        if (!liff.isLoggedIn()) {
-          liff.login();
-          return;
-        }
+        if (!liff.isLoggedIn()) { liff.login(); return; }
 
-        const userProfile = await liff.getProfile();
-        setProfile(userProfile);
-        setLiffReady(true);
+        if (!localStorage.getItem("TU_Smart_Service JWT Token")) {
+          const userProfile = await liff.getProfile();
+          setProfile(userProfile);
+          setLiffReady(true);
+          authenticate({ idToken: liff.getIDToken() });
+        } else {
+          const verifyData = await verify();
+          if (verifyData && ["user", "admin", "agency"].includes(verifyData.user.role)) {
+            const userProfile = await liff.getProfile();
+            setProfile(userProfile);
+            setLiffReady(true);
+          } else {
+            localStorage.removeItem("TU_Smart_Service JWT Token");
+            liff.login();
+          }
+        }
       } catch (err) {
         console.error("LIFF Initialization failed", err);
         setLiffError(err?.message ?? String(err));
