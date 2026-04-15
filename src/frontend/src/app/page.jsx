@@ -2,8 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import liff from "@line/liff";
-import { convertServerPatchToFullTree } from "next/dist/client/components/segment-cache/navigation";
-import { verify } from "node:crypto";
+import { authenticate,verify } from "./utils/authenkit";
 
 export default function Home() {
   const [profile, setProfile] = useState(null);
@@ -21,50 +20,6 @@ export default function Home() {
   const [errors, setErrors] = useState({});
 
   // ── LIFF Init & Login ──────────────────────────────────────────────────────
-
-  const authenticate = async (payload) => {
-    try {
-
-      const auth = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/login`, {
-        method: "POST",
-        headers: { "Content-type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-
-      if (!auth.ok) {
-        // idToken หมดอายุ → force logout แล้ว login ใหม่เพื่อให้ LINE ออก idToken ใหม่
-        liff.logout();
-        liff.login();
-        return;
-      }
-
-      const { token } = await auth.json();
-      localStorage.setItem("TU_Smart_Service JWT Token", token);
-
-    } catch (err) {
-      console.log("Authenticated failed", err)
-    }
-  }
-
-  const verify = async () => {
-    try {
-
-      const token = localStorage.getItem("TU_Smart_Service JWT Token");
-
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/verify`, {
-        method: "GET",
-        headers: {
-          "Content-type": "application/json",
-          "Authorization": `Bearer ${token}`
-        }
-      });
-
-      return await res.json();
-
-    } catch {
-
-    }
-  }
 
   useEffect(() => {
     const initLiff = async () => {
