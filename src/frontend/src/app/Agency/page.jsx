@@ -24,6 +24,19 @@ export default function AgencyRegister() {
   useEffect(() => {
     const initLiff = async () => {
       try {
+        const devUserId = process.env.NEXT_PUBLIC_DEV_USER_ID;
+        const isLocalhost = typeof window !== "undefined" && window.location.hostname === "localhost";
+
+        if (isLocalhost && devUserId) {
+          setProfile({
+            userId: devUserId,
+            displayName: "Dev User",
+            pictureUrl: "https://placehold.co/40",
+          });
+          setLiffReady(true);
+          return;
+        }
+
         await liff.init({ liffId: process.env.NEXT_PUBLIC_LIFF_ID_AGENCY });
 
         if (!liff.isLoggedIn()) {

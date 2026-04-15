@@ -88,13 +88,22 @@ export default function AgencyWeb() {
   useEffect(() => {
     const init = async () => {
       try {
-        await liff.init({ liffId: process.env.NEXT_PUBLIC_LIFF_ID_AGENCYWEB });
-        if (!liff.isLoggedIn()) { liff.login(); return; }
+        const devUserId = process.env.NEXT_PUBLIC_DEV_USER_ID;
+        const isLocalhost = typeof window !== "undefined" && window.location.hostname === "localhost";
 
-        const profile = await liff.getProfile();
+        let userId;
+
+        if (isLocalhost && devUserId) {
+          userId = devUserId;
+        } else {
+          await liff.init({ liffId: process.env.NEXT_PUBLIC_LIFF_ID_AGENCYWEB });
+          if (!liff.isLoggedIn()) { liff.login(); return; }
+          const profile = await liff.getProfile();
+          userId = profile.userId;
+        }
 
         const meRes = await fetch(`${API}/agencies/me`, {
-          headers: { userid: profile.userId },
+          headers: { userid: userId },
         });
         if (!meRes.ok) {
           setError("ไม่พบข้อมูลหน่วยงาน กรุณาลงทะเบียนก่อน");
@@ -103,7 +112,7 @@ export default function AgencyWeb() {
         }
         const { agencyId } = await meRes.json();
 
-        setAuth({ userId: profile.userId, agencyId });
+        setAuth({ userId, agencyId });
       } catch (err) {
         setError(err?.message ?? "LIFF initialization failed");
         setLoading(false);

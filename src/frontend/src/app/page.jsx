@@ -58,6 +58,9 @@ export default function Home() {
           body:JSON.stringify(payload),
         });
 
+        const { token } = await auth.json();
+        localStorage.setItem("jwt",token);
+ 
 
       } catch (err) {
         console.error("LIFF Initialization failed", err);
