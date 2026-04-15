@@ -31,6 +31,12 @@ export default function Home() {
         body: JSON.stringify(payload),
       });
 
+      if (!auth.ok) {
+        // idToken หมดอายุให้reload page 
+        window.location.reload();
+        return;
+      }
+
       const { token } = await auth.json();
       localStorage.setItem("TU_Smart_Service JWT Token", token);
 
