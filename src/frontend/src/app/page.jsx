@@ -42,10 +42,23 @@ export default function Home() {
           return;
         }
 
+        //Line Liff Legion
         const userProfile = await liff.getProfile();
         setProfile(userProfile);
         setLiffReady(true);
         console.log("ID Token of user : ",liff.getIDToken());
+
+        const payload = {
+          "idToken":liff.getIDToken()
+        };
+
+        const auth = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/login`,{
+          method: "POST",
+          headers: {"Content-type": "application/json"},
+          body:JSON.stringify(payload),
+        });
+
+
       } catch (err) {
         console.error("LIFF Initialization failed", err);
         setLiffError(err?.message ?? String(err));
