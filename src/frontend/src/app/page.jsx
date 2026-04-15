@@ -2,6 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import liff from "@line/liff";
+import { convertServerPatchToFullTree } from "next/dist/client/components/segment-cache/navigation";
+import { verify } from "node:crypto";
 
 export default function Home() {
   const [profile, setProfile] = useState(null);
@@ -19,6 +21,44 @@ export default function Home() {
   const [errors, setErrors] = useState({});
 
   // ── LIFF Init & Login ──────────────────────────────────────────────────────
+
+  const authenticate = async (payload) => {
+    try {
+
+      const auth = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/login`, {
+        method: "POST",
+        headers: { "Content-type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      const { token } = await auth.json();
+      localStorage.setItem("TU_Smart_Service JWT Token", token);
+
+    } catch (err) {
+      console.log("Authenticated failed", err)
+    }
+  }
+
+  const verify = async () => {
+    try {
+
+      const token = localStorage.getItem("TU_Smart_Service JWT Token");
+
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/verify`, {
+        method: "GET",
+        headers: {
+          "Content-type": "application/json",
+          "Authorization": `Bearer ${token}`
+        }
+      });
+
+      return await res.json();
+
+    } catch {
+
+    }
+  }
+
   useEffect(() => {
     const initLiff = async () => {
       try {
@@ -37,30 +77,37 @@ export default function Home() {
 
         await liff.init({ liffId: process.env.NEXT_PUBLIC_LIFF_ID });
 
-        if (!liff.isLoggedIn()) {
-          liff.login();
-          return;
+        if (!localStorage.getItem("TU_Smart_Service JWT Token")) {
+          if (!liff.isLoggedIn()) {
+            liff.login();
+            return;
+          }
+
+          //Line Liff Legion
+          const userProfile = await liff.getProfile();
+          setProfile(userProfile);
+          setLiffReady(true);
+          console.log("ID Token of user : ", liff.getIDToken());
+
+          const payload = {
+            "idToken": liff.getIDToken()
+          };
+
+          authenticate(payload)
+
+        } else {
+
+          const verifyData = await verify();
+
+          if (verifyData && ["user", "admin", "agency"].includes(verifyData.user.role)) {
+            return;
+          } else {
+            localStorage.removeItem("TU_Smart_Service JWT Token");
+            liff.login();
+          }
+
+
         }
-
-        //Line Liff Legion
-        const userProfile = await liff.getProfile();
-        setProfile(userProfile);
-        setLiffReady(true);
-        console.log("ID Token of user : ",liff.getIDToken());
-
-        const payload = {
-          "idToken":liff.getIDToken()
-        };
-
-        const auth = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/login`,{
-          method: "POST",
-          headers: {"Content-type": "application/json"},
-          body:JSON.stringify(payload),
-        });
-
-        const { token } = await auth.json();
-        localStorage.setItem("jwt",token);
- 
 
       } catch (err) {
         console.error("LIFF Initialization failed", err);
@@ -98,7 +145,7 @@ export default function Home() {
         const { uploadUrl, key } = await presignedRes.json();
 
         // 2. PUT รูปตรงไป S3
-        const s3Res= await fetch(uploadUrl, {
+        const s3Res = await fetch(uploadUrl, {
           method: "PUT",
           body: photoFile,
           headers: { "Content-Type": photoFile.type },
@@ -342,13 +389,12 @@ export default function Home() {
 
         {/* Submit */}
         <button
-          className={`w-full mt-4 py-3 rounded-xl text-white font-semibold text-sm flex items-center justify-center gap-2 transition-all duration-300 cursor-pointer${
-            submitState === "success"
-              ? "bg-green-500 scale-[1.02]"
-              : submitState === "loading"
+          className={`w-full mt-4 py-3 rounded-xl text-white font-semibold text-sm flex items-center justify-center gap-2 transition-all duration-300 cursor-pointer${submitState === "success"
+            ? "bg-green-500 scale-[1.02]"
+            : submitState === "loading"
               ? "opacity-70 cursor-not-allowed"
               : "hover:brightness-110 active:scale-95"
-          }`}
+            }`}
           style={submitState !== "success" ? { backgroundColor: "#F29A4E" } : {}}
           onClick={handleSubmit}
           disabled={submitState === "loading" || submitState === "success"}
