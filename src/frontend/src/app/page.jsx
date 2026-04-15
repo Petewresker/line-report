@@ -32,8 +32,9 @@ export default function Home() {
       });
 
       if (!auth.ok) {
-        // idToken หมดอายุให้reload page 
-        window.location.reload();
+        // idToken หมดอายุ → force logout แล้ว login ใหม่เพื่อให้ LINE ออก idToken ใหม่
+        liff.logout();
+        liff.login();
         return;
       }
 
