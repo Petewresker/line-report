@@ -113,7 +113,9 @@ export default function AgencyWeb() {
           authenticate({ idToken: liff.getIDToken() });
         } else {
           const verifyData = await verify();
+          console.log({ userId: verifyData.user.id, name: verifyData.user.name ,agencyId : verifyData.user.agencyId});
           if (verifyData && ["agency"].includes(verifyData.user.role)) {
+            console.log({ userId: verifyData.user.id, name: verifyData.user.name ,agencyId : verifyData.user.agencyId});
             setAuth({ userId: verifyData.user.id, name: verifyData.user.name ,agencyId : verifyData.user.agencyId});
           } else {
             setShowUnauthorized(true);
