@@ -62,6 +62,9 @@ export default function Home() {
           const verifyData = await verify();
 
           if (verifyData && ["user", "admin", "agency"].includes(verifyData.user.role)) {
+            const userProfile = await liff.getProfile();
+            setProfile(userProfile);
+            setLiffReady(true);
             return;
           } else {
             localStorage.removeItem("TU_Smart_Service JWT Token");
