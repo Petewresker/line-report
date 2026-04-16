@@ -167,6 +167,7 @@ export async function approveAgencyService(agencyId) {
       ReturnValues: "ALL_NEW"
     })
   );
+
   return result.Attributes;
 }
 

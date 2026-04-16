@@ -12,6 +12,8 @@ import {
   getAgencyByUserId
 } from "./service.js";
 
+import { fromCookie, verify as verifyJWT } from './extractJWT.js';
+
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "Content-Type,Authorization,userid,agencyid,role",
@@ -27,31 +29,82 @@ function normalizeHeaders(headers = {}) {
     Object.entries(headers).map(([key, value]) => [key.toLowerCase(), value])
   );
 }
+// getAuth
+// function (event) {
+//   const headers = normalizeHeaders(event.headers || {});
+//   return {
+//     userId: headers["userid"] || headers["user-id"],
+//     tokenAgencyId: headers["agencyid"] || headers["agency-id"],
+//     role: headers["role"]
+//   };
+// }
 
-function getAuth(event) {
-  const headers = normalizeHeaders(event.headers || {});
-  return {
-    userId: headers["userid"] || headers["user-id"],
-    tokenAgencyId: headers["agencyid"] || headers["agency-id"],
-    role: headers["role"]
-  };
+function requireAuth(event = {}) {
+  const token = fromCookie(event.headers);
+
+  if (!token) {
+    return {
+      ok: false,
+      response: {
+        statusCode: 401,
+        body: JSON.stringify({ message: "No token provided" })
+      }
+    };
+  }
+
+  try {
+    const decoded = verifyJWT(token);
+
+    return {
+      ok: true,
+      user: {
+        userId: decoded.userId,
+        role: decoded.role,
+        agencyId: decoded.agencyId
+      }
+    };
+  } catch (err) {
+    return {
+      ok: false,
+      response: {
+        statusCode: 401,
+        body: JSON.stringify({ message: "Invalid or expired token" })
+      }
+    };
+  }
+}
+
+function requireRole(user, allowedRoles) {
+  const roles = Array.isArray(allowedRoles) ? allowedRoles : [allowedRoles];
+
+  if (!roles.includes(user.role)) {
+    return {
+      statusCode: 403,
+      body: JSON.stringify({
+        message: "You do not have permission to access this resource",
+        requiredRoles: roles,
+        currentRole: user.role || null
+      })
+    };
+  }
+  return null;
 }
 
 // GET /agencies/{agencyId}/cases
 export async function handleGetCasesByAgencyId(event) {
+  const auth = requireAuth(event);
+  if (!auth.ok) return withCors(auth.response);
+
   const { agencyId } = event.pathParameters || {};
-  const { userId, tokenAgencyId, role } = getAuth(event);
 
-  if (!userId || !agencyId || !role) {
-    return withCors({ statusCode: 400, body: JSON.stringify({ message: "Missing authentication data" }) });
-  }
-
-  if (role !== "agency") {
-    return withCors({ statusCode: 403, body: JSON.stringify({ message: "Unauthorized" }) });
-  }
-
-  if (tokenAgencyId !== agencyId) {
-    return withCors({ statusCode: 403, body: JSON.stringify({ message: "Agency mismatch" }) });
+  const roleError = requireRole(auth.user, "agency");
+  if (roleError) return withCors(roleError);
+  
+  if (auth.user.agencyId !== agencyId) {
+    return withCors({
+      statusCode: 403,
+      body: JSON.stringify({ message: "Agency mismatch" })
+    });
   }
 
   try {
@@ -64,21 +117,25 @@ export async function handleGetCasesByAgencyId(event) {
 
 // GET /agencies/{agencyId}/cases/{caseId}
 export async function handleGetCaseById(event) {
+  const auth = requireAuth(event);
+  if (!auth.ok) return withCors(auth.response);
+
+  const roleError = requireRole(auth.user, "agency");
+  if (roleError) return withCors(roleError);
+
   const { agencyId, caseId } = event.pathParameters || {};
-  const { userId, tokenAgencyId, role } = getAuth(event);
 
-  if (!userId || !agencyId || !caseId || !role) {
-    return withCors({ statusCode: 400, body: JSON.stringify({ message: "Missing authentication data" }) });
+  if (!agencyId || !caseId) {
+    return withCors({ statusCode: 400, body: JSON.stringify({ message: "Missing agencyId or caseId" }) });
   }
 
-  if (role !== "agency") {
-    return withCors({ statusCode: 403, body: JSON.stringify({ message: "Unauthorized" }) });
+  if (auth.user.agencyId !== agencyId) {
+    return withCors({
+      statusCode: 403,
+      body: JSON.stringify({ message: "Agency mismatch" })
+    });
   }
-
-  if (tokenAgencyId !== agencyId) {
-    return withCors({ statusCode: 403, body: JSON.stringify({ message: "Agency mismatch" }) });
-  }
-
+  
   try {
     const item = await getCaseById(agencyId, caseId);
 
@@ -93,7 +150,12 @@ export async function handleGetCaseById(event) {
 }
 
 // GET /agencies
-export async function handleGetAllAgencies() {
+export async function handleGetAllAgencies(event) {
+  const auth = requireAuth(event);
+  if (!auth.ok) return withCors(auth.response);
+
+  const roleError = requireRole(auth.user, ["admin", "agency"]);
+  if (roleError) return withCors(roleError);
   try {
     const agencies = await getAllAgenciesService();
     return withCors({ statusCode: 200, body: JSON.stringify({ agencies }) });
@@ -104,6 +166,12 @@ export async function handleGetAllAgencies() {
 
 // POST /agencies/presign
 export async function handleGetPresignUrl(event) {
+  const auth = requireAuth(event);
+  if (!auth.ok) return withCors(auth.response);
+
+  const roleError = requireRole(auth.user, "agency");
+  if (roleError) return withCors(roleError);
+
   const { filename, contentType } = JSON.parse(event.body || "{}");
 
   if (!filename || !contentType) {
@@ -119,7 +187,13 @@ export async function handleGetPresignUrl(event) {
 }
 
 // DELETE /agencies/all
-export async function handleDeleteAllAgencies() {
+export async function handleDeleteAllAgencies(event) {
+  const auth = requireAuth(event);
+  if (!auth.ok) return withCors(auth.response);
+
+  const roleError = requireRole(auth.user, "admin");
+  if (roleError) return withCors(roleError);
+
   try {
     const result = await deleteAllAgenciesService();
     return withCors({ statusCode: 200, body: JSON.stringify(result) });
@@ -128,8 +202,14 @@ export async function handleDeleteAllAgencies() {
   }
 }
 
-// DELETE /agencies/{agencyId}
+// DELETE /agencies/{agencyId}/reject
 export async function handleDeleteAgency(event) {
+  const auth = requireAuth(event);
+  if (!auth.ok) return withCors(auth.response);
+
+  const roleError = requireRole(auth.user, "admin");
+  if (roleError) return withCors(roleError);
+  
   const { agencyId } = event.pathParameters || {};
   if (!agencyId) {
     return withCors({ statusCode: 400, body: JSON.stringify({ message: "Missing agencyId" }) });
@@ -144,7 +224,14 @@ export async function handleDeleteAgency(event) {
 
 // POST /agencies/{agencyId}/approve
 export async function handleApproveAgency(event) {
+  const auth = requireAuth(event);
+  if (!auth.ok) return withCors(auth.response);
+
+  const roleError = requireRole(auth.user, "admin");
+  if (roleError) return withCors(roleError);
+
   const { agencyId } = event.pathParameters || {};
+
   if (!agencyId) {
     return withCors({ statusCode: 400, body: JSON.stringify({ message: "Missing agencyId" }) });
   }
@@ -158,19 +245,22 @@ export async function handleApproveAgency(event) {
 
 // GET /agencies/me
 export async function handleGetMyAgency(event) {
-  const headers = normalizeHeaders(event.headers || {});
-  const userId = headers["userid"] || headers["user-id"];
-
-  if (!userId) {
-    return withCors({ statusCode: 400, body: JSON.stringify({ message: "Missing userId" }) });
-  }
+  const auth = requireAuth(event);
+  if (!auth.ok) return withCors(auth.response);
 
   try {
-    const agency = await getAgencyByUserId(userId);
+    const agency = await getAgencyByUserId(auth.user.userId);
     if (!agency) {
       return withCors({ statusCode: 404, body: JSON.stringify({ message: "Agency not found" }) });
     }
-    return withCors({ statusCode: 200, body: JSON.stringify({ agencyId: agency.AgencyID, status: agency.Status }) });
+    return withCors({
+      statusCode: 200,
+      body: JSON.stringify({
+        agencyId: agency.AgencyID,
+        status: agency.Status,
+        role: auth.user.role
+      })
+    });
   } catch (error) {
     return withCors({ statusCode: 500, body: JSON.stringify({ message: error.message }) });
   }
@@ -178,12 +268,11 @@ export async function handleGetMyAgency(event) {
 
 // POST /agencies
 export async function handleRegistration(event) {
-  const headers = normalizeHeaders(event.headers || {});
-  const userId = headers["userid"] || headers["user-id"];
+  const auth = requireAuth(event);
+  if (!auth.ok) return withCors(auth.response);
 
-  if (!userId) {
-    return withCors({ statusCode: 400, body: JSON.stringify({ message: "Missing authentication data" }) });
-  }
+  const roleError = requireRole(auth.user, ["admin","user"]);
+  if (roleError) return withCors(roleError);
 
   const body = JSON.parse(event.body);
   const { name, surname, phoneNumber, agencyName, lineUserID, email, imageKey } = body;
@@ -193,7 +282,7 @@ export async function handleRegistration(event) {
   }
 
   try {
-    const result = await registrationService({ userId, name, surname, phoneNumber, agencyName, lineUserID, email, imageKey });
+    const result = await registrationService({ userId: auth.user.userId, name, surname, phoneNumber, agencyName, lineUserID, email, imageKey });
     return withCors({ statusCode: 201, body: JSON.stringify({ message: "Registration submitted. Pending review.", agency: result }) });
   } catch (error) {
     return withCors({ statusCode: 500, body: JSON.stringify({ message: error.message }) });
@@ -202,20 +291,20 @@ export async function handleRegistration(event) {
 
 // POST /agencies/cases/{caseId}/accept
 export const acceptCase = async (event) => {
+  const auth = requireAuth(event);
+  if (!auth.ok) return withCors(auth.response);
+
+  const roleError = requireRole(auth.user, "agency");
+  if (roleError) return withCors(roleError);
+  
   try {
     const { caseId } = event.pathParameters || {};
-    const body = event.body ? JSON.parse(event.body) : {};
-    const { userId } = body;
 
     if (!caseId) {
       return withCors({ statusCode: 400, body: JSON.stringify({ message: "caseId is required" }) });
     }
 
-    if (!userId) {
-      return withCors({ statusCode: 400, body: JSON.stringify({ message: "userId is required" }) });
-    }
-
-    const result = await acceptCaseService(caseId, userId);
+    const result = await acceptCaseService(caseId, auth.user.userId);
 
     if (!result.success) {
       return withCors({ statusCode: 400, body: JSON.stringify({ message: result.message }) });
@@ -230,6 +319,12 @@ export const acceptCase = async (event) => {
 
 // POST /agencies/cases/{caseId}/complete
 export const completeCaseHandler = async (event) => {
+  const auth = requireAuth(event);
+  if (!auth.ok) return withCors(auth.response);
+
+  const roleError = requireRole(auth.user, "agency");
+  if (roleError) return withCors(roleError);
+  
   try {
     const { caseId } = event.pathParameters || {};
     const body = JSON.parse(event.body || "{}");

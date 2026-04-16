@@ -7,6 +7,19 @@ const docClient = DynamoDBDocumentClient.from(client);
 
 export async function verifyLineIdToken(idToken) {
   try {
+    if (process.env.NODE_ENV !== 'production') {
+      if (idToken === 'dev-user') {
+        return { sub: 'U_DEV_USER', name: 'Dev User' };
+      }
+    
+      if (idToken === 'dev-agency') {
+        return { sub: 'U_DEV_AGENCY', name: 'Dev Agency' };
+      }
+    
+      if (idToken === 'dev-admin') {
+        return { sub: 'U_DEV_ADMIN', name: 'Dev Admin' };
+      }
+    }
     const url = 'https://api.line.me/oauth2/v2.1/verify';
     
     const response = await fetch(url, {
