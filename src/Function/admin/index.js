@@ -1,6 +1,7 @@
 // admin/index.js
 import { assignReport, handleCreateAdmin, handleDeleteAdmin, handleGetMyAdmin } from './handler.js'
 import jwt from 'jsonwebtoken'
+import { fromHeader ,verify as JWTverify} from './extractJWT.js'
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
@@ -18,22 +19,25 @@ const CORS_HEADERS = {
   หากทุกอย่างถูกต้อง เราจะ return null เพื่อให้ฟังก์ชันที่เรียกใช้สามารถดำเนินการต่อไปได้
 */
 function requireRole(event, requiredRole) {
-  const authHeader = event.headers?.Authorization || event.headers?.authorization;
-  const token = authHeader && authHeader.startsWith('Bearer ') ? authHeader.substring(7) : null;
+  const token = fromHeader(event);
+  console.log("token : ",token); //For Debugger via cloudwatch
 
   if (!token){
+    console.log('No token provided in Authorization header'); 
     return { statusCode: 401, headers: CORS_HEADERS, body: JSON.stringify({ message: 'Unauthorized: No token provided' }) };
   }
 
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    if (decoded.role !== requiredRole) {
-      return { statusCode: 403, headers: CORS_HEADERS, body: JSON.stringify({ message: 'Forbidden: Insufficient permissions' }) };
-    }
+    const decoded = JWTverify(token);
+    console.log("Decode : ",decoded);
+    if(decoded.role != requiredRole){
+      console.log("Decode role : ",decoded.role);
+      return { statusCode:401 , headers:CORS_HEADERS, body: JSON.stringify({UnAuthorized :"role not compatible as required"})};
+    }  
   } catch (error) {
     return { statusCode: 401, headers: CORS_HEADERS, body: JSON.stringify({ message: 'Unauthorized: Invalid token' }) };
   }
-  return null; // No error, user has required role so pass!
+  return null;
 
 }
 
@@ -58,12 +62,6 @@ export const handler = async (event) => {
       const { caseId } = pathParameters || {}
       return assignReport({ ...event, caseId })
     }
-
-    // ไม่ได้ใช้จริง [เป็นซากอารยธรรมที่เราพยายามให้ agency แทน agencyId]
-    // if (httpMethod === 'POST' && resource === '/admin/cases/{caseId}/agencies/{agencyId}') {
-    //   const { caseId } = pathParameters || {}
-    //   return assignReport({ ...event, caseId })
-    // }
 
     // ===================================== DELETE ====================================
     if (httpMethod === 'DELETE' && resource === '/admin/users') { return handleDeleteAdmin(event) }
