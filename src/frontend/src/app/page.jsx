@@ -7,6 +7,7 @@ export default function Home() {
   const [profile, setProfile] = useState(null);
   const [liffReady, setLiffReady] = useState(false);
   const [liffError, setLiffError] = useState(null);
+  const [idToken, setIdToken] = useState(null);
 
   const [photoPreview, setPhotoPreview] = useState(null);
   const [photoFile, setPhotoFile] = useState(null);
@@ -45,11 +46,9 @@ export default function Home() {
         const userProfile = await liff.getProfile();
         setProfile(userProfile);
         setLiffReady(true);
-<<<<<<< HEAD
-        console.log("LIFF initialized, ID Token: ", liff.getIDToken());
-=======
-        console.log("ID Token of user : ",liff.getIDToken());
->>>>>>> fb64751fc5fb9133626a4dc48aedb09829a3201e
+        const token = liff.getIDToken();
+        setIdToken(token);
+        console.log("ID Token of user : ", token);
       } catch (err) {
         console.error("LIFF Initialization failed", err);
         setLiffError(err?.message ?? String(err));
@@ -58,6 +57,22 @@ export default function Home() {
 
     initLiff();
   }, []);
+
+  // ── IDToken auto-refresh ──────────────────────────────────────────────────
+  useEffect(() => {
+    if (!idToken) return
+    try {
+      const payload = JSON.parse(atob(idToken.split('.')[1]))
+      const msUntilExpiry = payload.exp * 1000 - Date.now()
+      if (msUntilExpiry <= 0) { setIdToken(liff.getIDToken()); return }
+      const timer = setTimeout(() => {
+        const fresh = liff.getIDToken()
+        setIdToken(fresh)
+        console.log("ID Token of user : ", fresh)
+      }, msUntilExpiry - 30_000)
+      return () => clearTimeout(timer)
+    } catch { /* token ไม่ใช่ JWT standard ก็ข้ามไป */ }
+  }, [idToken])
 
   // ── Handlers ───────────────────────────────────────────────────────────────
   const handleSubmit = async () => {
