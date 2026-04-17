@@ -17,6 +17,20 @@ Resources:
         openapi: '3.0'
         info: {}
         paths:
+          /auth/login:
+            post:
+              x-amazon-apigateway-integration:
+                httpMethod: POST
+                type: aws_proxy
+                uri: !Sub arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${auth.Arn}/invocations
+              responses: {}
+          /auth/verify:
+            get:
+              x-amazon-apigateway-integration:
+                httpMethod: POST
+                type: aws_proxy
+                uri: !Sub arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${auth.Arn}/invocations
+              responses: {}
           /callback:
             post:
               x-amazon-apigateway-integration:
