@@ -1,5 +1,6 @@
 // handler.js - validate แล้วเรียก service
 import { editCaseService, getCasesByUserService, getAllCasesService, getAllCasesAdminService, createCaseService, postCaseService, getPresignedUrlService, HostspotService, trendAnalysisService, ResolutionTime, deleteCasesByUserService, monthlyReportService, deleteAllCasesService, deleteByCaseIdService } from './service.js'
+import { fromCookie, verify as verifyJWT } from './extractJWT.js'
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
@@ -7,51 +8,108 @@ const CORS_HEADERS = {
   'Access-Control-Allow-Methods': 'GET,POST,OPTIONS,DELETE',
 }
 
+function withCors(response) {
+  return { ...response, headers: { ...CORS_HEADERS, ...(response.headers ?? {}) } }
+}
+
+function requireAuth(event = {}) {
+  const token = fromCookie(event.headers)
+
+  if (!token) {
+    return {
+      ok: false,
+      response: {
+        statusCode: 401,
+        body: JSON.stringify({ message: 'No token provided' }),
+      },
+    }
+  }
+
+  try {
+    const decoded = verifyJWT(token)
+    return {
+      ok: true,
+      user: {
+        userId: decoded.userId,
+        role: decoded.role,
+        agencyId: decoded.agencyId,
+      },
+    }
+  } catch (err) {
+    return {
+      ok: false,
+      response: {
+        statusCode: 401,
+        body: JSON.stringify({ message: 'Invalid or expired token' }),
+      },
+    }
+  }
+}
+
+function requireRole(user, allowedRoles) {
+  const roles = Array.isArray(allowedRoles) ? allowedRoles : [allowedRoles]
+
+  if (!roles.includes(user.role)) {
+    return {
+      statusCode: 403,
+      body: JSON.stringify({
+        message: 'You do not have permission to access this resource',
+        requiredRoles: roles,
+        currentRole: user.role || null,
+      }),
+    }
+  }
+  return null
+}
+
 // GET /cases/presigned-url
 export const getPresignedUrl = async (event) => {
+  const auth = requireAuth(event)
+  if (!auth.ok) return withCors(auth.response)
+
   try {
     const { filename, contentType } = event.queryStringParameters || {}
     if (!filename || !contentType) {
-      return { statusCode: 400, headers: CORS_HEADERS, body: JSON.stringify({ error: 'filename and contentType are required' }) }
+      return withCors({ statusCode: 400, body: JSON.stringify({ error: 'filename and contentType are required' }) })
     }
     const result = await getPresignedUrlService(filename, contentType)
-    return { statusCode: 200, headers: CORS_HEADERS, body: JSON.stringify(result) }
+    return withCors({ statusCode: 200, body: JSON.stringify(result) })
   } catch (error) {
     console.error('getPresignedUrl error:', error)
-    return { statusCode: 500, headers: CORS_HEADERS, body: JSON.stringify({ error: 'Failed to generate presigned URL', message: error.message }) }
+    return withCors({ statusCode: 500, body: JSON.stringify({ error: 'Failed to generate presigned URL', message: error.message }) })
   }
 }
 
 // GET /cases
 export const getCasesByUser = async (event) => {
+  const auth = requireAuth(event)
+  if (!auth.ok) return withCors(auth.response)
+
   try {
-    const { userId, admin } = event.queryStringParameters || {}
-    const result = admin === 'true'
+    const { admin } = event.queryStringParameters || {}
+    const result = (admin === 'true' && auth.user.role === 'admin')
       ? await getAllCasesAdminService()
-      : userId
-        ? await getCasesByUserService(userId)
-        : await getAllCasesService()
-    return { statusCode: 200, headers: CORS_HEADERS, body: JSON.stringify(result) }
+      : await getCasesByUserService(auth.user.userId)
+    return withCors({ statusCode: 200, body: JSON.stringify(result) })
   } catch (error) {
     console.error('getCasesByUser error:', error)
-    return { statusCode: 500, headers: CORS_HEADERS, body: JSON.stringify({ error: error.message }) }
+    return withCors({ statusCode: 500, body: JSON.stringify({ error: error.message }) })
   }
 }
 
 // POST /cases/{caseId}/edit
 export const editCaseHandler = async (event) => {
+  const auth = requireAuth(event)
+  if (!auth.ok) return withCors(auth.response)
+
   try {
     const { caseId } = event.pathParameters
     const body = JSON.parse(event.body)
-    const result = await editCaseService(caseId, body)
-    return { statusCode: 200, headers: CORS_HEADERS, body: JSON.stringify(result) }
+    const result = await editCaseService(caseId, body, auth.user.userId)
+    return withCors({ statusCode: 200, body: JSON.stringify(result) })
   } catch (error) {
     console.error('editCaseHandler error:', error)
-    return {
-      statusCode: 500,
-      headers: CORS_HEADERS,
-      body: JSON.stringify({ error: 'Failed to edit case', message: error.message }),
-    }
+    return withCors({ statusCode: 500, body: JSON.stringify({ error: 'Failed to edit case', message: error.message }) })
   }
 }
 
@@ -72,128 +130,155 @@ export const postCaseByUser = async (event) => {
 
 // POST /cases
 export const createCase = async (event) => {
-  const body = JSON.parse(event.body)
+  const auth = requireAuth(event)
+  if (!auth.ok) return withCors(auth.response)
 
-  const result = await createCaseService(body)
-  return { statusCode: 201, headers: CORS_HEADERS, body: JSON.stringify(result) }
+  try {
+    const body = JSON.parse(event.body)
+    body.userId = auth.user.userId
+    const result = await createCaseService(body)
+    return withCors({ statusCode: 201, body: JSON.stringify(result) })
+  } catch (error) {
+    console.error('createCase error:', error)
+    return withCors({ statusCode: 500, body: JSON.stringify({ error: 'Failed to create case', message: error.message }) })
+  }
 }
 
 // GET /cases/hotspots
-export const gethotspot = async () =>{
+export const gethotspot = async (event) => {
+  const auth = requireAuth(event)
+  if (!auth.ok) return withCors(auth.response)
+
+  const roleError = requireRole(auth.user, 'admin')
+  if (roleError) return withCors(roleError)
 
   try {
-      const result = await HostspotService();
-      return { statusCode: 201, headers: CORS_HEADERS, body: JSON.stringify(result) }
+    const result = await HostspotService()
+    return withCors({ statusCode: 200, body: JSON.stringify(result) })
   } catch (error) {
-      console.error('gethotspot error:', error)
-      return {
-        statusCode: 500,
-        headers: CORS_HEADERS,
-        body: JSON.stringify({ error: 'Failed to get hotspot', message: error.message }),
-    }
-}
+    console.error('gethotspot error:', error)
+    return withCors({ statusCode: 500, body: JSON.stringify({ error: 'Failed to get hotspot', message: error.message }) })
+  }
 }
 
 // GET /cases/trends
-export const getTrends = async () => {
+export const getTrends = async (event) => {
+  const auth = requireAuth(event)
+  if (!auth.ok) return withCors(auth.response)
+
+  const roleError = requireRole(auth.user, 'admin')
+  if (roleError) return withCors(roleError)
+
   try {
     const result = await trendAnalysisService()
-    return { statusCode: 200, headers: CORS_HEADERS, body: JSON.stringify(result) }
+    return withCors({ statusCode: 200, body: JSON.stringify(result) })
   } catch (error) {
     console.error('getTrends error:', error)
-    return { statusCode: 500, headers: CORS_HEADERS, body: JSON.stringify({ error: 'Failed to get trends', message: error.message }) }
+    return withCors({ statusCode: 500, body: JSON.stringify({ error: 'Failed to get trends', message: error.message }) })
   }
 }
 
 // GET /cases/resolution
-export const getResolution = async () => {
+export const getResolution = async (event) => {
+  const auth = requireAuth(event)
+  if (!auth.ok) return withCors(auth.response)
+
+  const roleError = requireRole(auth.user, 'admin')
+  if (roleError) return withCors(roleError)
+
   try {
     const result = await ResolutionTime()
-    return { statusCode: 200, headers: CORS_HEADERS, body: JSON.stringify(result) }
+    return withCors({ statusCode: 200, body: JSON.stringify(result) })
   } catch (error) {
     console.error('getResolution error:', error)
-    return { statusCode: 500, headers: CORS_HEADERS, body: JSON.stringify({ error: 'Failed to get resolution', message: error.message }) }
+    return withCors({ statusCode: 500, body: JSON.stringify({ error: 'Failed to get resolution', message: error.message }) })
   }
 }
 
 // POST /cases/mockpost
-export const seedMockCases = async () => {
+export const seedMockCases = async (event) => {
+  const auth = requireAuth(event)
+  if (!auth.ok) return withCors(auth.response)
+
+  const roleError = requireRole(auth.user, 'admin')
+  if (roleError) return withCors(roleError)
+
   try {
     const result = await postCaseService()
-    return { statusCode: 200, headers: CORS_HEADERS, body: JSON.stringify(result) }
+    return withCors({ statusCode: 200, body: JSON.stringify(result) })
   } catch (error) {
     console.error('seedMockCases error:', error)
-    return { statusCode: 500, headers: CORS_HEADERS, body: JSON.stringify({ error: error.message }) }
+    return withCors({ statusCode: 500, body: JSON.stringify({ error: error.message }) })
   }
 }
 
 // GET /cases/monthly
-export const getMonthlyReport = async () => {
+export const getMonthlyReport = async (event) => {
+  const auth = requireAuth(event)
+  if (!auth.ok) return withCors(auth.response)
+
+  const roleError = requireRole(auth.user, 'admin')
+  if (roleError) return withCors(roleError)
+
   try {
     const result = await monthlyReportService()
-    return { statusCode: 200, headers: CORS_HEADERS, body: JSON.stringify(result) }
+    return withCors({ statusCode: 200, body: JSON.stringify(result) })
   } catch (error) {
     console.error('getMonthlyReport error:', error)
-    return { statusCode: 500, headers: CORS_HEADERS, body: JSON.stringify({ error: 'Failed to get monthly report', message: error.message }) }
+    return withCors({ statusCode: 500, body: JSON.stringify({ error: 'Failed to get monthly report', message: error.message }) })
   }
 }
 
-// DELETE /cases
+// DELETE /cases/{userId}
 export const deleteCase = async (event) => {
+  const auth = requireAuth(event)
+  if (!auth.ok) return withCors(auth.response)
+
   try {
-    const { userId } = event.queryStringParameters || {}
-    if (!userId) {
-      return { statusCode: 400, headers: CORS_HEADERS, body: JSON.stringify({ error: 'userId is required' }) }
-    }
-    const result = await deleteCasesByUserService(userId)
-    return { statusCode: 200, headers: CORS_HEADERS, body: JSON.stringify(result) }
+    const result = await deleteCasesByUserService(auth.user.userId)
+    return withCors({ statusCode: 200, body: JSON.stringify(result) })
   } catch (error) {
     console.error('deleteCase error:', error)
-    return { statusCode: 500, headers: CORS_HEADERS, body: JSON.stringify({ error: 'Failed to delete cases', message: error.message }) }
+    return withCors({ statusCode: 500, body: JSON.stringify({ error: 'Failed to delete cases', message: error.message }) })
   }
 }
 
 // DELETE /cases/all
-export const deleteAllCases = async () => {
+export const deleteAllCases = async (event) => {
+  const auth = requireAuth(event)
+  if (!auth.ok) return withCors(auth.response)
+
+  const roleError = requireRole(auth.user, 'admin')
+  if (roleError) return withCors(roleError)
+
   try {
     const result = await deleteAllCasesService()
-    return { statusCode: 200, headers: CORS_HEADERS, body: JSON.stringify(result) }
+    return withCors({ statusCode: 200, body: JSON.stringify(result) })
   } catch (error) {
     console.error('deleteAllCases error:', error)
-    return { statusCode: 500, headers: CORS_HEADERS, body: JSON.stringify({ error: 'Failed to delete all cases', message: error.message }) }
+    return withCors({ statusCode: 500, body: JSON.stringify({ error: 'Failed to delete all cases', message: error.message }) })
   }
 }
 
 // DELETE /cases/{caseId}
 export const deleteByCaseId = async (event) => {
+  const auth = requireAuth(event)
+  if (!auth.ok) return withCors(auth.response)
+
+  const roleError = requireRole(auth.user, 'admin')
+  if (roleError) return withCors(roleError)
+
   try {
     const { caseId } = event.pathParameters || {}
 
     if (!caseId) {
-      return {
-        statusCode: 400,
-        headers: CORS_HEADERS,
-        body: JSON.stringify({ error: 'caseId is required' }),
-      }
+      return withCors({ statusCode: 400, body: JSON.stringify({ error: 'caseId is required' }) })
     }
 
     const result = await deleteByCaseIdService(caseId)
-
-    return {
-      statusCode: 200,
-      headers: CORS_HEADERS,
-      body: JSON.stringify(result),
-    }
-
+    return withCors({ statusCode: 200, body: JSON.stringify(result) })
   } catch (error) {
     console.error('deleteCaseById error:', error)
-    return {
-      statusCode: 500,
-      headers: CORS_HEADERS,
-      body: JSON.stringify({
-        error: 'Failed to delete case',
-        message: error.message,
-      }),
-    }
+    return withCors({ statusCode: 500, body: JSON.stringify({ error: 'Failed to delete case', message: error.message }) })
   }
 }

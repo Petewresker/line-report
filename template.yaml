@@ -175,6 +175,12 @@ Resources:
                 uri: !Sub arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${auth.Arn}/invocations
               responses: {}
           /auth/verify:
+            get:
+              x-amazon-apigateway-integration:
+                httpMethod: POST
+                type: aws_proxy
+                uri: !Sub arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${auth.Arn}/invocations
+              responses: {}
           /cases/hotspots:
             get:
               x-amazon-apigateway-integration:
@@ -393,6 +399,7 @@ Resources:
           IMAGEBUCKET_BUCKET_NAME: !Ref ImageBucket
           IMAGEBUCKET_BUCKET_ARN: !GetAtt ImageBucket.Arn
           DYNAMODB_ENDPOINT: ''
+          JWT_SECRET: KFCPACKAGE499
       Events:
         ApiGETcasesPresignedUrl:
           Type: Api
