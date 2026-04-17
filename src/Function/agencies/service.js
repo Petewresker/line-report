@@ -137,15 +137,20 @@ export async function deleteAllAgenciesService() {
 
 // ลบ Agency (Reject)
 export async function deleteAgencyService(agencyId) {
-  await dynamoDB.send(
-    new DeleteCommand({
+  const result = await dynamoDB.send(
+    new UpdateCommand({
       TableName: TABLE_NAME,
       Key: {
         PK: `AGENCY#${agencyId}`,
         SK: `METADATA#${agencyId}`
-      }
+      },
+      UpdateExpression: "SET #s = :status",
+      ExpressionAttributeNames:{ "#s": "Status"},
+      ExpressionAttributeValues:{ ":status":"REJECTED"},
+      ReturnValues: "ALL_NEW"
     })
   );
+  return result.Attributes; 
 }
 
 // อนุมัติ Agency เปลี่ยน Status เป็น Active และ update User role + agencyId

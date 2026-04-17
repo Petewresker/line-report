@@ -2,12 +2,12 @@
 
 import { useEffect, useRef, useState } from "react";
 import liff from "@line/liff";
+import { authenticate,verify } from "./utils/authenkit";
 
 export default function Home() {
   const [profile, setProfile] = useState(null);
   const [liffReady, setLiffReady] = useState(false);
   const [liffError, setLiffError] = useState(null);
-  const [idToken, setIdToken] = useState(null);
 
   const [photoPreview, setPhotoPreview] = useState(null);
   const [photoFile, setPhotoFile] = useState(null);
@@ -20,6 +20,7 @@ export default function Home() {
   const [errors, setErrors] = useState({});
 
   // ── LIFF Init & Login ──────────────────────────────────────────────────────
+
   useEffect(() => {
     const initLiff = async () => {
       try {
@@ -38,17 +39,41 @@ export default function Home() {
 
         await liff.init({ liffId: process.env.NEXT_PUBLIC_LIFF_ID });
 
-        if (!liff.isLoggedIn()) {
-          liff.login();
-          return;
+        if (!localStorage.getItem("TU_Smart_Service JWT Token")) {
+          if (!liff.isLoggedIn()) {
+            liff.login();
+            return;
+          }
+
+          //Line Liff Legion
+          const userProfile = await liff.getProfile();
+          setProfile(userProfile);
+          setLiffReady(true);
+          console.log("ID Token of user : ", liff.getIDToken());
+
+          const payload = {
+            "idToken": liff.getIDToken()
+          };
+
+          authenticate(payload)
+
+        } else {
+
+          const verifyData = await verify();
+
+          if (verifyData && ["user", "admin", "agency"].includes(verifyData.user.role)) {
+            const userProfile = await liff.getProfile();
+            setProfile(userProfile);
+            setLiffReady(true);
+            return;
+          } else {
+            localStorage.removeItem("TU_Smart_Service JWT Token");
+            liff.login();
+          }
+
+
         }
 
-        const userProfile = await liff.getProfile();
-        setProfile(userProfile);
-        setLiffReady(true);
-        const token = liff.getIDToken();
-        setIdToken(token);
-        console.log("ID Token of user : ", token);
       } catch (err) {
         console.error("LIFF Initialization failed", err);
         setLiffError(err?.message ?? String(err));
@@ -57,22 +82,6 @@ export default function Home() {
 
     initLiff();
   }, []);
-
-  // ── IDToken auto-refresh ──────────────────────────────────────────────────
-  useEffect(() => {
-    if (!idToken) return
-    try {
-      const payload = JSON.parse(atob(idToken.split('.')[1]))
-      const msUntilExpiry = payload.exp * 1000 - Date.now()
-      if (msUntilExpiry <= 0) { setIdToken(liff.getIDToken()); return }
-      const timer = setTimeout(() => {
-        const fresh = liff.getIDToken()
-        setIdToken(fresh)
-        console.log("ID Token of user : ", fresh)
-      }, msUntilExpiry - 30_000)
-      return () => clearTimeout(timer)
-    } catch { /* token ไม่ใช่ JWT standard ก็ข้ามไป */ }
-  }, [idToken])
 
   // ── Handlers ───────────────────────────────────────────────────────────────
   const handleSubmit = async () => {
@@ -180,6 +189,20 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-[#FFE2C2] px-4 py-4 flex flex-col">
       <div className="bg-white rounded-2xl shadow-sm p-4 flex-1">
+
+        {/* Debug Refresh Button */}
+        <div className="flex justify-end mb-2">
+          <button
+            onClick={() => {
+              localStorage.clear();
+              sessionStorage.clear();
+              window.location.reload();
+            }}
+            className="text-xs text-gray-400 border border-gray-300 rounded px-2 py-1 hover:bg-gray-100 active:scale-95"
+          >
+            Debug Reload
+          </button>
+        </div>
 
         {/* Profile Header */}
         <div className="flex items-center gap-3 border-b border-gray-200 pb-3 mb-4">
@@ -331,13 +354,12 @@ export default function Home() {
 
         {/* Submit */}
         <button
-          className={`w-full mt-4 py-3 rounded-xl text-white font-semibold text-sm flex items-center justify-center gap-2 transition-all duration-300 cursor-pointer${
-            submitState === "success"
-              ? "bg-green-500 scale-[1.02]"
-              : submitState === "loading"
+          className={`w-full mt-4 py-3 rounded-xl text-white font-semibold text-sm flex items-center justify-center gap-2 transition-all duration-300 cursor-pointer${submitState === "success"
+            ? "bg-green-500 scale-[1.02]"
+            : submitState === "loading"
               ? "opacity-70 cursor-not-allowed"
               : "hover:brightness-110 active:scale-95"
-          }`}
+            }`}
           style={submitState !== "success" ? { backgroundColor: "#F29A4E" } : {}}
           onClick={handleSubmit}
           disabled={submitState === "loading" || submitState === "success"}
