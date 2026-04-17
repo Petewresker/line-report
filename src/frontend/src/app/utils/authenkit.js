@@ -1,9 +1,7 @@
-//authenkit for easy to implement fetching data from auth service
 import liff from "@line/liff";
 
 const authenticate = async (payload) => {
     try {
-
         const auth = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/login`, {
             method: "POST",
             headers: { "Content-type": "application/json" },
@@ -11,7 +9,6 @@ const authenticate = async (payload) => {
         });
 
         if (!auth.ok) {
-            // idToken หมดอายุ → force logout แล้ว login ใหม่เพื่อให้ LINE ออก idToken ใหม่
             liff.logout();
             liff.login();
             return;
@@ -21,29 +18,38 @@ const authenticate = async (payload) => {
         localStorage.setItem("TU_Smart_Service JWT Token", token);
 
     } catch (err) {
-        console.log("Authenticated failed", err)
+        console.log("Authenticated failed", err);
     }
-}
+};
 
+const callVerifyAPI = async () => {
+    const token = localStorage.getItem("TU_Smart_Service JWT Token");
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/verify`, {
+        method: "GET",
+        headers: {
+            "Content-type": "application/json",
+            "Authorization": `Bearer ${token}`
+        }
+    });
+    if (!res.ok) return null;
+    return await res.json();
+};
 
-const verify = async () => {
+// ถ้า JWT เก่าไม่มี role ที่ต้องการ → re-auth อัตโนมัติแล้วลองใหม่ 1 ครั้ง
+const verify = async (requiredRole = null) => {
     try {
+        const data = await callVerifyAPI();
 
-        const token = localStorage.getItem("TU_Smart_Service JWT Token");
+        if (requiredRole && data?.user?.role !== requiredRole) {
+            localStorage.removeItem("TU_Smart_Service JWT Token");
+            await authenticate({ idToken: liff.getIDToken() });
+            return await callVerifyAPI();
+        }
 
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/verify`, {
-            method: "GET",
-            headers: {
-                "Content-type": "application/json",
-                "Authorization": `Bearer ${token}`
-            }
-        });
-
-        return await res.json();
-
-    } catch {
-
+        return data;
+    } catch (err) {
+        console.log("Verify failed", err);
     }
-}
+};
 
-export {authenticate , verify}
+export { authenticate, verify };
