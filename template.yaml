@@ -400,6 +400,7 @@ Resources:
           IMAGEBUCKET_BUCKET_NAME: !Ref ImageBucket
           IMAGEBUCKET_BUCKET_ARN: !GetAtt ImageBucket.Arn
           DYNAMODB_ENDPOINT: ''
+          JWT_SECRET: KFCPACKAGE499
       Events:
         ApiGETcasesPresignedUrl:
           Type: Api
