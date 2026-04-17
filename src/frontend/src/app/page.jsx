@@ -39,39 +39,27 @@ export default function Home() {
 
         await liff.init({ liffId: process.env.NEXT_PUBLIC_LIFF_ID });
 
-        if (!localStorage.getItem("TU_Smart_Service JWT Token")) {
-          if (!liff.isLoggedIn()) {
-            liff.login();
-            return;
-          }
+        if (!liff.isLoggedIn()) {
+          liff.login();
+          return;
+        }
 
-          //Line Liff Legion
+        if (!localStorage.getItem("TU_Smart_Service JWT Token")) {
           const userProfile = await liff.getProfile();
           setProfile(userProfile);
           setLiffReady(true);
-          console.log("ID Token of user : ", liff.getIDToken());
-
-          const payload = {
-            "idToken": liff.getIDToken()
-          };
-
-          authenticate(payload)
-
+          await authenticate({ idToken: liff.getIDToken() });
         } else {
-
           const verifyData = await verify();
 
           if (verifyData && ["user", "admin", "agency"].includes(verifyData.user.role)) {
             const userProfile = await liff.getProfile();
             setProfile(userProfile);
             setLiffReady(true);
-            return;
           } else {
             localStorage.removeItem("TU_Smart_Service JWT Token");
             liff.login();
           }
-
-
         }
 
       } catch (err) {
