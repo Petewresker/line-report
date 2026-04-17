@@ -1,5 +1,5 @@
 // cases/index.js
-import { getCasesByUser, editCaseHandler, createCase, postCaseByUser, getPresignedUrl, gethotspot, getTrends, getResolution, deleteCase, getMonthlyReport, seedMockCases, deleteAllCases } from './handler.js'
+import { getCasesByUser, editCaseHandler, createCase, postCaseByUser, getPresignedUrl, gethotspot, getTrends, getResolution, deleteCase, getMonthlyReport, seedMockCases, deleteAllCases, deleteByCaseId } from './handler.js'
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
@@ -9,20 +9,25 @@ const CORS_HEADERS = {
 
 export const handler = async (event) => {
   try {
-    const { httpMethod, path } = event
+    const { httpMethod, path, resource } = event
 
+    //API เทสระบบว่ามีปลายทางไหม
     if (httpMethod === 'OPTIONS') return { statusCode: 200, headers: CORS_HEADERS, body: '' }
 
     if (httpMethod === 'GET' && path === '/cases/presigned-url') return getPresignedUrl(event)
     if (httpMethod === 'GET' && path === '/cases')       return getCasesByUser(event)
     if (httpMethod === 'POST' && path.includes('/edit')) return editCaseHandler(event)
     if (httpMethod === 'POST' && path === '/cases') return createCase(event)
+    if (httpMethod === 'DELETE' && path === '/cases') return deleteCase(event)
+
+    //สําหรับการวิเคราะห์ข้อมูล
     if (httpMethod === 'GET' && path === '/cases/hotspots') return gethotspot()
     if (httpMethod === 'GET' && path === '/cases/trends') return getTrends()
     if (httpMethod === 'GET' && path === '/cases/resolution') return getResolution()
-    if (httpMethod === 'DELETE' && path === '/cases/all') return deleteAllCases()
-    if (httpMethod === 'DELETE' && path === '/cases') return deleteCase(event)
     if (httpMethod === 'GET' && path === '/cases/monthly') return getMonthlyReport()
+
+    //วิเคราะห์ข้อมูล
+    if (httpMethod === 'DELETE' && path === '/cases/all') return deleteAllCases()
     if (httpMethod === 'POST' && path === '/cases/mockpost') return seedMockCases()
 
     return {

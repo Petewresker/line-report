@@ -51,6 +51,18 @@ export const deleteAdminService = async (lineUserId) => {
     ConditionExpression: 'attribute_exists(PK)',
     ReturnValues: 'ALL_OLD',
   }))
+
+  if (result.Attributes) {
+    // Reset User record role → user
+    await client.send(new UpdateCommand({
+      TableName: tableName,
+      Key: { PK: `USER#${lineUserId}`, SK: 'PROFILE' },
+      UpdateExpression: 'SET #role = :role',
+      ExpressionAttributeNames: { '#role': 'role' },
+      ExpressionAttributeValues: { ':role': 'user' },
+    }))
+  }
+
   return result.Attributes ?? null
 }
 
@@ -69,6 +81,16 @@ export const createAdminService = async (lineUserId, name) => {
   }
 
   await client.send(new PutCommand({ TableName: tableName, Item: item }))
+
+  // Patch User record role → admin
+  await client.send(new UpdateCommand({
+    TableName: tableName,
+    Key: { PK: `USER#${lineUserId}`, SK: 'PROFILE' },
+    UpdateExpression: 'SET #role = :role',
+    ExpressionAttributeNames: { '#role': 'role' },
+    ExpressionAttributeValues: { ':role': 'admin' },
+  }))
+
   return item
 }
 

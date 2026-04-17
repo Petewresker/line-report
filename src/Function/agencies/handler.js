@@ -37,6 +37,7 @@ function getAuth(event) {
   };
 }
 
+// GET /agencies/{agencyId}/cases
 export async function handleGetCasesByAgencyId(event) {
   const { agencyId } = event.pathParameters || {};
   const { userId, tokenAgencyId, role } = getAuth(event);
@@ -61,6 +62,7 @@ export async function handleGetCasesByAgencyId(event) {
   }
 }
 
+// GET /agencies/{agencyId}/cases/{caseId}
 export async function handleGetCaseById(event) {
   const { agencyId, caseId } = event.pathParameters || {};
   const { userId, tokenAgencyId, role } = getAuth(event);
@@ -90,6 +92,7 @@ export async function handleGetCaseById(event) {
   }
 }
 
+// GET /agencies
 export async function handleGetAllAgencies() {
   try {
     const agencies = await getAllAgenciesService();
@@ -99,6 +102,7 @@ export async function handleGetAllAgencies() {
   }
 }
 
+// POST /agencies/presign
 export async function handleGetPresignUrl(event) {
   const { filename, contentType } = JSON.parse(event.body || "{}");
 
@@ -114,6 +118,7 @@ export async function handleGetPresignUrl(event) {
   }
 }
 
+// DELETE /agencies/all
 export async function handleDeleteAllAgencies() {
   try {
     const result = await deleteAllAgenciesService();
@@ -123,6 +128,7 @@ export async function handleDeleteAllAgencies() {
   }
 }
 
+// DELETE /agencies/{agencyId}
 export async function handleDeleteAgency(event) {
   const { agencyId } = event.pathParameters || {};
   if (!agencyId) {
@@ -136,6 +142,7 @@ export async function handleDeleteAgency(event) {
   }
 }
 
+// POST /agencies/{agencyId}/approve
 export async function handleApproveAgency(event) {
   const { agencyId } = event.pathParameters || {};
   if (!agencyId) {
@@ -149,6 +156,7 @@ export async function handleApproveAgency(event) {
   }
 }
 
+// GET /agencies/me
 export async function handleGetMyAgency(event) {
   const headers = normalizeHeaders(event.headers || {});
   const userId = headers["userid"] || headers["user-id"];
@@ -168,6 +176,7 @@ export async function handleGetMyAgency(event) {
   }
 }
 
+// POST /agencies
 export async function handleRegistration(event) {
   const headers = normalizeHeaders(event.headers || {});
   const userId = headers["userid"] || headers["user-id"];
