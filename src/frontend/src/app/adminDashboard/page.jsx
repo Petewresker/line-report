@@ -78,49 +78,23 @@ export default function AdminDashboard() {
         const devUserId = process.env.NEXT_PUBLIC_DEV_USER_ID
         const isLocalhost = typeof window !== 'undefined' && window.location.hostname === 'localhost'
 
-        let userId
-
         if (isLocalhost && devUserId) {
-          // Bypass LIFF on localhost — use dev userId from env
-          userId = devUserId
-        } else {
-          await liff.init({ liffId: process.env.NEXT_PUBLIC_LIFF_ID_PROBLEM_SEEKER })
-          if (!liff.isLoggedIn()) { liff.login(); return }
-          const profile = await liff.getProfile()
-          userId = profile.userId
-          console.log("Seek for IDToken : ", liff.getIDToken());
+          setAuth({ userId: devUserId })
+          return
         }
 
+        await liff.init({ liffId: process.env.NEXT_PUBLIC_LIFF_ID_PROBLEM_SEEKER })
+        if (!liff.isLoggedIn()) { liff.login(); return }
+
         if (!localStorage.getItem("TU_Smart_Service JWT Token")) {
-          if (!liff.isLoggedIn()) {
-            liff.login();
-            return;
-          }
+          await authenticate({ idToken: liff.getIDToken() });
+        }
 
-          //Line Liff Legion
-          // const userProfile = await liff.getProfile();
-          // setProfile(userProfile);
-          setLiffReady(true);
-          console.log("ID Token of user : ", liff.getIDToken());
-
-          const payload = {
-            "idToken": liff.getIDToken()
-          };
-
-          authenticate(payload)
-
+        const verifyData = await verify("admin");
+        if (verifyData?.user?.role === "admin") {
+          setAuth({ userId: verifyData.user.userId, name: verifyData.user.name });
         } else {
-          const verifyData = await verify();
-
-          if (verifyData && ["admin"].includes(verifyData.user.role)) {
-            setAuth({ userId: verifyData.user.id, name: verifyData.user.name })
-            return;
-          } else {
-            //ไม่ผ่านก็เตะแม่งออกไปเลย
-            setShowUnauthorized(true);
-            setAuthLoading(false);
-            return;
-          }
+          setShowUnauthorized(true);
         }
       } catch (err) {
         setAuthError(err?.message ?? 'LIFF initialization failed')
@@ -171,7 +145,7 @@ export default function AdminDashboard() {
       const caseIds = getRelatedCaseIds(selected)
       await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/cases/${selected.caseId}/assign`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', "Authorization": `Bearer ${localStorage.getItem("TU_Smart_Service JWT Token")}` },
         body: JSON.stringify({ agencyId: selectedAgency.agencyId, caseIds }),
       })
       setCases(prev => prev.map(c => caseIds.includes(c.caseId) ? { ...c, status: 'FORWARD' } : c))

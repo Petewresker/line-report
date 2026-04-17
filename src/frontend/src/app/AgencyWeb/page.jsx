@@ -108,20 +108,14 @@ export default function AgencyWeb() {
         if (!liff.isLoggedIn()) { liff.login(); return; }
 
         if (!localStorage.getItem("TU_Smart_Service JWT Token")) {
-          const profile = await liff.getProfile();
-          userId = profile.userId;
-          authenticate({ idToken: liff.getIDToken() });
+          await authenticate({ idToken: liff.getIDToken() });
+        }
+
+        const verifyData = await verify("agency");
+        if (verifyData?.user?.role === "agency") {
+          setAuth({ userId: verifyData.user.userId, name: verifyData.user.name, agencyId: verifyData.user.agencyId });
         } else {
-          const verifyData = await verify();
-          console.log("Verify Response:", verifyData);
-          console.log({ userId: verifyData.user.id, name: verifyData.user.name ,agencyId : verifyData.user.agencyId});
-          if (verifyData && ["agency"].includes(verifyData.user.role)) {
-            console.log({ userId: verifyData.user.id, name: verifyData.user.name ,agencyId : verifyData.user.agencyId});
-            setAuth({ userId: verifyData.user.id, name: verifyData.user.name ,agencyId : verifyData.user.agencyId});
-          } else {
-            setShowUnauthorized(true);
-            setAuthLoading(false);
-          }
+          setShowUnauthorized(true);
         }
       } catch (err) {
         setAuthError(err?.message ?? "LIFF initialization failed");

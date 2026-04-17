@@ -73,16 +73,14 @@ export default function AnalysisPage() {
         if (!liff.isLoggedIn()) { liff.login(); return }
 
         if (!localStorage.getItem('TU_Smart_Service JWT Token')) {
-          const payload = { idToken: liff.getIDToken() }
-          authenticate(payload)
+          await authenticate({ idToken: liff.getIDToken() })
+        }
+
+        const verifyData = await verify('admin')
+        if (verifyData?.user?.role === 'admin') {
+          setAuth({ userId: verifyData.user.userId, name: verifyData.user.name })
         } else {
-          const verifyData = await verify()
-          if (verifyData && ['admin'].includes(verifyData.user.role)) {
-            setAuth({ userId: verifyData.user.id, name: verifyData.user.name })
-          } else {
-            setShowUnauthorized(true)
-            setAuthLoading(false)
-          }
+          setShowUnauthorized(true)
         }
       } catch (err) {
         setAuthError(err?.message ?? 'LIFF initialization failed')
