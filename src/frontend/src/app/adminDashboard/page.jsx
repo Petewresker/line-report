@@ -145,7 +145,7 @@ export default function AdminDashboard() {
       const caseIds = getRelatedCaseIds(selected)
       await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/cases/${selected.caseId}/assign`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json',"Authorization": `Bearer ${token}` },
+        headers: { 'Content-Type': 'application/json', "Authorization": `Bearer ${localStorage.getItem("TU_Smart_Service JWT Token")}` },
         body: JSON.stringify({ agencyId: selectedAgency.agencyId, caseIds }),
       })
       setCases(prev => prev.map(c => caseIds.includes(c.caseId) ? { ...c, status: 'FORWARD' } : c))
