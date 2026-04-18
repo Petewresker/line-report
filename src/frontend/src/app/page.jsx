@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import liff from "@line/liff";
+import { authenticate,verify } from "./utils/authenkit";
 
 export default function Home() {
   const [profile, setProfile] = useState(null);
@@ -19,6 +20,7 @@ export default function Home() {
   const [errors, setErrors] = useState({});
 
   // ── LIFF Init & Login ──────────────────────────────────────────────────────
+
   useEffect(() => {
     const initLiff = async () => {
       try {
@@ -42,10 +44,24 @@ export default function Home() {
           return;
         }
 
-        const userProfile = await liff.getProfile();
-        setProfile(userProfile);
-        setLiffReady(true);
-        console.log("ID Token of user : ",liff.getIDToken());
+        if (!localStorage.getItem("TU_Smart_Service JWT Token")) {
+          const userProfile = await liff.getProfile();
+          setProfile(userProfile);
+          setLiffReady(true);
+          await authenticate({ idToken: liff.getIDToken() });
+        } else {
+          const verifyData = await verify();
+
+          if (verifyData && ["user", "admin", "agency"].includes(verifyData.user.role)) {
+            const userProfile = await liff.getProfile();
+            setProfile(userProfile);
+            setLiffReady(true);
+          } else {
+            localStorage.removeItem("TU_Smart_Service JWT Token");
+            liff.login();
+          }
+        }
+
       } catch (err) {
         console.error("LIFF Initialization failed", err);
         setLiffError(err?.message ?? String(err));
@@ -82,7 +98,7 @@ export default function Home() {
         const { uploadUrl, key } = await presignedRes.json();
 
         // 2. PUT รูปตรงไป S3
-        const s3Res= await fetch(uploadUrl, {
+        const s3Res = await fetch(uploadUrl, {
           method: "PUT",
           body: photoFile,
           headers: { "Content-Type": photoFile.type },
@@ -326,13 +342,12 @@ export default function Home() {
 
         {/* Submit */}
         <button
-          className={`w-full mt-4 py-3 rounded-xl text-white font-semibold text-sm flex items-center justify-center gap-2 transition-all duration-300 cursor-pointer${
-            submitState === "success"
-              ? "bg-green-500 scale-[1.02]"
-              : submitState === "loading"
+          className={`w-full mt-4 py-3 rounded-xl text-white font-semibold text-sm flex items-center justify-center gap-2 transition-all duration-300 cursor-pointer${submitState === "success"
+            ? "bg-green-500 scale-[1.02]"
+            : submitState === "loading"
               ? "opacity-70 cursor-not-allowed"
               : "hover:brightness-110 active:scale-95"
-          }`}
+            }`}
           style={submitState !== "success" ? { backgroundColor: "#F29A4E" } : {}}
           onClick={handleSubmit}
           disabled={submitState === "loading" || submitState === "success"}

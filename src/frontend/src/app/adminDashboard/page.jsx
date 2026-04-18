@@ -5,6 +5,7 @@ import liff from '@line/liff'
 import { Search, Calendar, Clock, MapPin, ExternalLink, AlertCircle, AlertTriangle, Eye } from 'lucide-react'
 import Navbar from '../components/Navbar'
 import Sidebar from '../components/Sidebar'
+import { authenticate, verify } from '../utils/authenkit'
 
 const API = process.env.NEXT_PUBLIC_API_URL
 
@@ -41,22 +42,23 @@ const formatTime = (iso) => {
 
 
 const getReportIndicator = (count) => {
-  if (count > 10) return { Icon: AlertCircle,  color: '#EF4444', bg: '#FEE2E2', label: count }
-  if (count >= 5)  return { Icon: AlertTriangle, color: '#F59E0B', bg: '#FEF3C7', label: count }
-  return            { Icon: Eye,           color: '#3B82F6', bg: '#DBEAFE', label: count }
+  if (count > 10) return { Icon: AlertCircle, color: '#EF4444', bg: '#FEE2E2', label: count }
+  if (count >= 5) return { Icon: AlertTriangle, color: '#F59E0B', bg: '#FEF3C7', label: count }
+  return { Icon: Eye, color: '#3B82F6', bg: '#DBEAFE', label: count }
 }
 
 const STATUS_MAP = {
-  PENDING:     { bg: '#FEF3C7', text: '#92400E', label: 'รอดำเนินการ' },
-  FORWARD:     { bg: '#EDE9FE', text: '#6D28D9', label: 'กำลังส่งมอบ' },
+  PENDING: { bg: '#FEF3C7', text: '#92400E', label: 'รอดำเนินการ' },
+  FORWARD: { bg: '#EDE9FE', text: '#6D28D9', label: 'กำลังส่งมอบ' },
   IN_PROGRESS: { bg: '#DBEAFE', text: '#1E40AF', label: 'กำลังดำเนินการ' },
-  FINISHED:    { bg: '#D1FAE5', text: '#065F46', label: 'เสร็จสิ้น' },
+  FINISHED: { bg: '#D1FAE5', text: '#065F46', label: 'เสร็จสิ้น' },
 }
 
 export default function AdminDashboard() {
   const [auth, setAuth] = useState(null)
   const [authLoading, setAuthLoading] = useState(true)
   const [authError, setAuthError] = useState(null)
+  const [showUnauthorized, setShowUnauthorized] = useState(false)
 
   const [activeFilter, setActiveFilter] = useState('ทั้งหมด')
   const [searchQuery, setSearchQuery] = useState('')
@@ -76,31 +78,24 @@ export default function AdminDashboard() {
         const devUserId = process.env.NEXT_PUBLIC_DEV_USER_ID
         const isLocalhost = typeof window !== 'undefined' && window.location.hostname === 'localhost'
 
-        let userId
-
         if (isLocalhost && devUserId) {
-          // Bypass LIFF on localhost — use dev userId from env
-          userId = devUserId
-        } else {
-          await liff.init({ liffId: process.env.NEXT_PUBLIC_LIFF_ID_PROBLEM_SEEKER })
-          if (!liff.isLoggedIn()) { liff.login(); return }
-          const profile = await liff.getProfile()
-          userId = profile.userId
-          console.log("Seek for IDToken : ",liff.getIDToken());
-        }
-
-        const res = await fetch(`${API}/admin/me`, {
-          headers: { userid: userId },
-        })
-
-        if (!res.ok) {
-          setAuthError('คุณไม่มีสิทธิ์เข้าใช้งานระบบนี้')
-          setAuthLoading(false)
+          setAuth({ userId: devUserId })
           return
         }
 
-        const { admin } = await res.json()
-        setAuth({ userId, name: admin.Name })
+        await liff.init({ liffId: process.env.NEXT_PUBLIC_LIFF_ID_PROBLEM_SEEKER })
+        if (!liff.isLoggedIn()) { liff.login(); return }
+
+        if (!localStorage.getItem("TU_Smart_Service JWT Token")) {
+          await authenticate({ idToken: liff.getIDToken() });
+        }
+
+        const verifyData = await verify("admin");
+        if (verifyData?.user?.role === "admin") {
+          setAuth({ userId: verifyData.user.userId, name: verifyData.user.name });
+        } else {
+          setShowUnauthorized(true);
+        }
       } catch (err) {
         setAuthError(err?.message ?? 'LIFF initialization failed')
       } finally {
@@ -150,7 +145,7 @@ export default function AdminDashboard() {
       const caseIds = getRelatedCaseIds(selected)
       await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/cases/${selected.caseId}/assign`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json',"Authorization": `Bearer ${token}` },
         body: JSON.stringify({ agencyId: selectedAgency.agencyId, caseIds }),
       })
       setCases(prev => prev.map(c => caseIds.includes(c.caseId) ? { ...c, status: 'FORWARD' } : c))
@@ -164,10 +159,10 @@ export default function AdminDashboard() {
   }
 
   const stats = [
-    { label: 'Total',       value: cases.length,                                           labelColor: '#111' },
-    { label: 'Pending',     value: cases.filter(c => c.status === 'PENDING').length,       labelColor: '#F59E0B' },
-    { label: 'In progress', value: cases.filter(c => c.status === 'IN_PROGRESS').length,   labelColor: '#3B82F6' },
-    { label: 'Success',     value: cases.filter(c => c.status === 'FINISHED').length,      labelColor: '#10B981' },
+    { label: 'Total', value: cases.length, labelColor: '#111' },
+    { label: 'Pending', value: cases.filter(c => c.status === 'PENDING').length, labelColor: '#F59E0B' },
+    { label: 'In progress', value: cases.filter(c => c.status === 'IN_PROGRESS').length, labelColor: '#3B82F6' },
+    { label: 'Success', value: cases.filter(c => c.status === 'FINISHED').length, labelColor: '#10B981' },
   ]
 
   const filtered = useMemo(() => cases.filter((c) => {
@@ -190,6 +185,37 @@ export default function AdminDashboard() {
     }
     return result
   }, [filtered])
+
+  if (showUnauthorized) {
+    return (
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#FFE2C2' }}>
+        <div style={{
+          background: '#fff', borderRadius: '20px', padding: '2.5rem 2rem', width: '340px', maxWidth: '90vw',
+          boxShadow: '0 8px 32px rgba(0,0,0,0.15)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem', textAlign: 'center',
+        }}>
+          <div style={{
+            width: '64px', height: '64px', borderRadius: '50%', background: '#FEE2E2',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}>
+            <AlertCircle size={32} color="#EF4444" />
+          </div>
+          <h2 style={{ fontSize: '1.15rem', fontWeight: '700', color: '#111', margin: 0 }}>ไม่มีสิทธิ์เข้าถึง</h2>
+          <p style={{ fontSize: '0.875rem', color: '#666', lineHeight: '1.6', margin: 0 }}>
+            คุณไม่มีสิทธิ์เข้าใช้งานหน้านี้<br />กรุณาติดต่อผู้ดูแลระบบ
+          </p>
+          <button
+            onClick={() => window.history.back()}
+            style={{
+              marginTop: '0.5rem', padding: '0.65rem 2rem', borderRadius: '10px', border: 'none',
+              background: '#EF4444', color: '#fff', fontSize: '0.9rem', fontWeight: '600', cursor: 'pointer',
+            }}
+          >
+            ย้อนกลับ
+          </button>
+        </div>
+      </div>
+    )
+  }
 
   if (authLoading) {
     return (
