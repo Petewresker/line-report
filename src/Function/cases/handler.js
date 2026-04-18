@@ -114,19 +114,22 @@ export const editCaseHandler = async (event) => {
 }
 
 
-export const postCaseByUser = async (event) => {
-  try {
-    const body = JSON.parse(event.body || '{}')
-    const result = await postCaseService(body)
-    return result
-  } catch (error) {
-    console.error('postCaseByUser error:', error)
-    return {
-      statusCode: 500,
-      body: JSON.stringify({ error: 'Failed to post case', message: error.message }),
-    }
-  }
-}
+// export const postCaseByUser = async (event) => {
+//   const auth = requireAuth(event)
+//   if (!auth.ok) return withCors(auth.response)
+
+//   try {
+//     const body = JSON.parse(event.body || '{}')
+//     const result = await postCaseService(body)
+//     return result
+//   } catch (error) {
+//     console.error('postCaseByUser error:', error)
+//     return {
+//       statusCode: 500,
+//       body: JSON.stringify({ error: 'Failed to post case', message: error.message }),
+//     }
+//   }
+// }
 
 // POST /cases
 export const createCase = async (event) => {
@@ -233,6 +236,9 @@ export const getMonthlyReport = async (event) => {
 export const deleteCase = async (event) => {
   const auth = requireAuth(event)
   if (!auth.ok) return withCors(auth.response)
+
+  const roleError = requireRole(auth.user, 'admin')
+  if (roleError) return withCors(roleError)
 
   try {
     const result = await deleteCasesByUserService(auth.user.userId)
