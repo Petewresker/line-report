@@ -49,11 +49,14 @@ export const handler = async (event) => {
   try {
     const { httpMethod, resource, pathParameters } = event
 
-    // ===================================== GET ====================================
-    if (httpMethod === 'GET' && resource === '/admin/me') { return handleGetMyAdmin(event) }
 
     // ===================================== POST ====================================
-    if (httpMethod === 'POST' && resource === '/admin/users') { return handleCreateAdmin(event) }
+    if (httpMethod === 'POST' && resource === '/admin/users') { 
+      
+        const authError = requireRole(event, 'admin');
+        if(authError) return authError;
+      
+        return handleCreateAdmin(event) }
 
     if (httpMethod === 'POST' && resource === '/admin/cases/{caseId}/assign') {
       const authError = requireRole(event, 'admin');
