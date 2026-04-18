@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import liff from "@line/liff";
+import { authenticate, verify } from "../utils/authenkit";
 
 export default function AgencyRegister() {
   const [profile, setProfile] = useState(null);
@@ -24,16 +25,39 @@ export default function AgencyRegister() {
   useEffect(() => {
     const initLiff = async () => {
       try {
-        await liff.init({ liffId: process.env.NEXT_PUBLIC_LIFF_ID_AGENCY });
+        const devUserId = process.env.NEXT_PUBLIC_DEV_USER_ID;
+        const isLocalhost = typeof window !== "undefined" && window.location.hostname === "localhost";
 
-        if (!liff.isLoggedIn()) {
-          liff.login();
+        if (isLocalhost && devUserId) {
+          setProfile({
+            userId: devUserId,
+            displayName: "Dev User",
+            pictureUrl: "https://placehold.co/40",
+          });
+          setLiffReady(true);
           return;
         }
 
-        const userProfile = await liff.getProfile();
-        setProfile(userProfile);
-        setLiffReady(true);
+        await liff.init({ liffId: process.env.NEXT_PUBLIC_LIFF_ID_AGENCY });
+
+        if (!liff.isLoggedIn()) { liff.login(); return; }
+
+        if (!localStorage.getItem("TU_Smart_Service JWT Token")) {
+          const userProfile = await liff.getProfile();
+          setProfile(userProfile);
+          setLiffReady(true);
+          authenticate({ idToken: liff.getIDToken() });
+        } else {
+          const verifyData = await verify();
+          if (verifyData && ["user", "admin", "agency"].includes(verifyData.user.role)) {
+            const userProfile = await liff.getProfile();
+            setProfile(userProfile);
+            setLiffReady(true);
+          } else {
+            localStorage.removeItem("TU_Smart_Service JWT Token");
+            liff.login();
+          }
+        }
       } catch (err) {
         console.error("LIFF Initialization failed", err);
         setLiffError(err?.message ?? String(err));

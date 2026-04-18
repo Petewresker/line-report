@@ -152,9 +152,10 @@ export async function deleteAgencyService(agencyId) {
   );
   return result.Attributes; 
 }
-// อนุมัติ Agency เปลี่ยน Status เป็น Active
+
+// อนุมัติ Agency เปลี่ยน Status เป็น Active และ update User role + agencyId
 export async function approveAgencyService(agencyId) {
-  const result = await dynamoDB.send(
+  const agencyResult = await dynamoDB.send(
     new UpdateCommand({
       TableName: TABLE_NAME,
       Key: {
@@ -167,7 +168,28 @@ export async function approveAgencyService(agencyId) {
       ReturnValues: "ALL_NEW"
     })
   );
-  return result.Attributes;
+
+  const agency = agencyResult.Attributes;
+
+  if (agency?.UserID) {
+    await dynamoDB.send(
+      new UpdateCommand({
+        TableName: TABLE_NAME,
+        Key: {
+          PK: `USER#${agency.UserID}`,
+          SK: "PROFILE"
+        },
+        UpdateExpression: "SET #role = :role, agencyId = :agencyId",
+        ExpressionAttributeNames: { "#role": "role" },
+        ExpressionAttributeValues: {
+          ":role": "agency",
+          ":agencyId": agencyId
+        }
+      })
+    );
+  }
+
+  return agency;
 }
 
 //Registration ให้ Agency
