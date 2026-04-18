@@ -98,7 +98,7 @@ export default function Home() {
         const { uploadUrl, key } = await presignedRes.json();
 
         // 2. PUT รูปตรงไป S3
-        const s3Res = await fetch(uploadUrl, {
+        const s3Res= await fetch(uploadUrl, {
           method: "PUT",
           body: photoFile,
           headers: { "Content-Type": photoFile.type },
