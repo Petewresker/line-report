@@ -16,11 +16,25 @@ export default function Home() {
   const [locState, setLocState] = useState("idle");
   const [coords, setCoords] = useState(null);
   const [submitState, setSubmitState] = useState("idle"); // idle | loading | success | error
+  const [errors, setErrors] = useState({});
 
   // ── LIFF Init & Login ──────────────────────────────────────────────────────
   useEffect(() => {
     const initLiff = async () => {
       try {
+        const devUserId = process.env.NEXT_PUBLIC_DEV_USER_ID;
+        const isLocalhost = typeof window !== "undefined" && window.location.hostname === "localhost";
+
+        if (isLocalhost && devUserId) {
+          setProfile({
+            userId: devUserId,
+            displayName: "Dev User",
+            pictureUrl: "https://placehold.co/40",
+          });
+          setLiffReady(true);
+          return;
+        }
+
         await liff.init({ liffId: process.env.NEXT_PUBLIC_LIFF_ID });
 
         if (!liff.isLoggedIn()) {
@@ -31,6 +45,7 @@ export default function Home() {
         const userProfile = await liff.getProfile();
         setProfile(userProfile);
         setLiffReady(true);
+        console.log("ID Token of user : ",liff.getIDToken());
       } catch (err) {
         console.error("LIFF Initialization failed", err);
         setLiffError(err?.message ?? String(err));
@@ -43,6 +58,18 @@ export default function Home() {
   // ── Handlers ───────────────────────────────────────────────────────────────
   const handleSubmit = async () => {
     if (submitState === "loading" || submitState === "success") return;
+
+    const newErrors = {};
+    if (!topic) newErrors.topic = "Please select topic";
+    if (!detail.trim()) newErrors.detail = "Please fill descriptions";
+    if (!photoFile) newErrors.photo = "Please take a photo";
+    if (!coords) newErrors.location = "Please shared your location";
+
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
+      return;
+    }
+    setErrors({});
     setSubmitState("loading");
     try {
       let imageKey = null;
@@ -55,12 +82,13 @@ export default function Home() {
         const { uploadUrl, key } = await presignedRes.json();
 
         // 2. PUT รูปตรงไป S3
-        await fetch(uploadUrl, {
+        const s3Res= await fetch(uploadUrl, {
           method: "PUT",
           body: photoFile,
           headers: { "Content-Type": photoFile.type },
         });
 
+        console.log("S3 PUT status:", s3Res.status);
         imageKey = key;
       }
 
@@ -134,6 +162,20 @@ export default function Home() {
     <div className="min-h-screen bg-[#FFE2C2] px-4 py-4 flex flex-col">
       <div className="bg-white rounded-2xl shadow-sm p-4 flex-1">
 
+        {/* Debug Refresh Button */}
+        <div className="flex justify-end mb-2">
+          <button
+            onClick={() => {
+              localStorage.clear();
+              sessionStorage.clear();
+              window.location.reload();
+            }}
+            className="text-xs text-gray-400 border border-gray-300 rounded px-2 py-1 hover:bg-gray-100 active:scale-95"
+          >
+            Debug Reload
+          </button>
+        </div>
+
         {/* Profile Header */}
         <div className="flex items-center gap-3 border-b border-gray-200 pb-3 mb-4">
           <img
@@ -152,7 +194,7 @@ export default function Home() {
         {/* Topic */}
         <div className="relative">
           <select
-            className="w-full px-3 py-2 rounded-lg text-gray-400 text-sm appearance-none"
+            className="w-full px-3 py-2 rounded-lg text-black text-sm appearance-none"
             style={{ backgroundColor: "#F5F5F5", border: "1px solid #5D5A5A" }}
             value={topic}
             onChange={(e) => setTopic(e.target.value)}
@@ -170,15 +212,17 @@ export default function Home() {
             </svg>
           </div>
         </div>
+        {errors.topic && <p className="text-red-500 text-xs mt-1">{errors.topic}</p>}
 
         {/* Detail */}
         <textarea
-          className="w-full mt-3 px-3 py-2 rounded-lg text-gray-400 text-sm resize-none h-40"
+          className="w-full mt-3 px-3 py-2 rounded-lg text-black text-sm resize-none h-40"
           style={{ backgroundColor: "#F5F5F5", border: "1px solid #5D5A5A" }}
           placeholder="Type detail..."
           value={detail}
           onChange={(e) => setDetail(e.target.value)}
         />
+        {errors.detail && <p className="text-red-500 text-xs mt-1">{errors.detail}</p>}
 
         {/* Photo */}
         <div className="border-b border-gray-200 mt-3 pb-3 mb-4">
@@ -235,6 +279,7 @@ export default function Home() {
             </div>
           </div>
         )}
+        {errors.photo && <p className="text-red-500 text-xs mt-1">{errors.photo}</p>}
 
         {/* Location */}
         <div className="border-b border-gray-200 mt-3 pb-3 mb-4">
@@ -277,10 +322,11 @@ export default function Home() {
             <span className="text-gray-400 text-xs">Lat: {coords.lat.toFixed(6)}, Long: {coords.lng.toFixed(6)}</span>
           </div>
         )}
+        {errors.location && <p className="text-red-500 text-xs mt-1">{errors.location}</p>}
 
         {/* Submit */}
         <button
-          className={`w-full mt-4 py-3 rounded-xl text-white font-semibold text-sm flex items-center justify-center gap-2 transition-all duration-300 ${
+          className={`w-full mt-4 py-3 rounded-xl text-white font-semibold text-sm flex items-center justify-center gap-2 transition-all duration-300 cursor-pointer${
             submitState === "success"
               ? "bg-green-500 scale-[1.02]"
               : submitState === "loading"
