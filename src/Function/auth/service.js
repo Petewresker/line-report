@@ -77,6 +77,10 @@ export async function findOrCreateUser(lineUserId, lineProfile) {
         userData.agencyId = Item.agencyId;
       }
       
+      if (Item.adminId) {
+        userData.adminId = Item.adminId;
+      }
+      
       return userData;
     }
   
