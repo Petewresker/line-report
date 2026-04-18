@@ -1,12 +1,13 @@
 // handler.js - validate แล้วเรียก service
-import { editCaseService, getCasesByUserService, getAllCasesService, getAllCasesAdminService, createCaseService, postCaseService, getPresignedUrlService, HostspotService, trendAnalysisService, ResolutionTime, deleteCasesByUserService, monthlyReportService, deleteAllCasesService } from './service.js'
+import { editCaseService, getCasesByUserService, getAllCasesService, getAllCasesAdminService, createCaseService, postCaseService, getPresignedUrlService, HostspotService, trendAnalysisService, ResolutionTime, deleteCasesByUserService, monthlyReportService, deleteAllCasesService, deleteByCaseIdService } from './service.js'
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'Content-Type,X-Amz-Date,Authorization,X-Api-Key',
-  'Access-Control-Allow-Methods': 'GET,POST,OPTIONS',
+  'Access-Control-Allow-Methods': 'GET,POST,OPTIONS,DELETE',
 }
 
+// GET /cases/presigned-url
 export const getPresignedUrl = async (event) => {
   try {
     const { filename, contentType } = event.queryStringParameters || {}
@@ -20,6 +21,8 @@ export const getPresignedUrl = async (event) => {
     return { statusCode: 500, headers: CORS_HEADERS, body: JSON.stringify({ error: 'Failed to generate presigned URL', message: error.message }) }
   }
 }
+
+// GET /cases
 export const getCasesByUser = async (event) => {
   try {
     const { userId, admin } = event.queryStringParameters || {}
@@ -35,6 +38,7 @@ export const getCasesByUser = async (event) => {
   }
 }
 
+// POST /cases/{caseId}/edit
 export const editCaseHandler = async (event) => {
   try {
     const { caseId } = event.pathParameters
@@ -66,6 +70,7 @@ export const postCaseByUser = async (event) => {
   }
 }
 
+// POST /cases
 export const createCase = async (event) => {
   const body = JSON.parse(event.body)
 
@@ -73,6 +78,7 @@ export const createCase = async (event) => {
   return { statusCode: 201, headers: CORS_HEADERS, body: JSON.stringify(result) }
 }
 
+// GET /cases/hotspots
 export const gethotspot = async () =>{
 
   try {
@@ -88,6 +94,7 @@ export const gethotspot = async () =>{
 }
 }
 
+// GET /cases/trends
 export const getTrends = async () => {
   try {
     const result = await trendAnalysisService()
@@ -98,6 +105,7 @@ export const getTrends = async () => {
   }
 }
 
+// GET /cases/resolution
 export const getResolution = async () => {
   try {
     const result = await ResolutionTime()
@@ -108,7 +116,7 @@ export const getResolution = async () => {
   }
 }
 
-
+// POST /cases/mockpost
 export const seedMockCases = async () => {
   try {
     const result = await postCaseService()
@@ -119,6 +127,7 @@ export const seedMockCases = async () => {
   }
 }
 
+// GET /cases/monthly
 export const getMonthlyReport = async () => {
   try {
     const result = await monthlyReportService()
@@ -129,6 +138,7 @@ export const getMonthlyReport = async () => {
   }
 }
 
+// DELETE /cases
 export const deleteCase = async (event) => {
   try {
     const { userId } = event.queryStringParameters || {}
@@ -143,6 +153,7 @@ export const deleteCase = async (event) => {
   }
 }
 
+// DELETE /cases/all
 export const deleteAllCases = async () => {
   try {
     const result = await deleteAllCasesService()
@@ -153,4 +164,36 @@ export const deleteAllCases = async () => {
   }
 }
 
+// DELETE /cases/{caseId}
+export const deleteByCaseId = async (event) => {
+  try {
+    const { caseId } = event.pathParameters || {}
 
+    if (!caseId) {
+      return {
+        statusCode: 400,
+        headers: CORS_HEADERS,
+        body: JSON.stringify({ error: 'caseId is required' }),
+      }
+    }
+
+    const result = await deleteByCaseIdService(caseId)
+
+    return {
+      statusCode: 200,
+      headers: CORS_HEADERS,
+      body: JSON.stringify(result),
+    }
+
+  } catch (error) {
+    console.error('deleteCaseById error:', error)
+    return {
+      statusCode: 500,
+      headers: CORS_HEADERS,
+      body: JSON.stringify({
+        error: 'Failed to delete case',
+        message: error.message,
+      }),
+    }
+  }
+}
