@@ -2,10 +2,12 @@
 
 import { useState, useEffect } from 'react'
 import dynamic from 'next/dynamic'
-import { MoreVertical, Search, TrendingUp, MapPin, RefreshCw, Download } from 'lucide-react'
+import { MoreVertical, Search, TrendingUp, MapPin, RefreshCw, Download, AlertCircle } from 'lucide-react'
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts'
+import liff from '@line/liff'
 import Navbar from '../../components/Navbar'
 import Sidebar from '../../components/Sidebar'
+import { authenticate, verify } from '../../utils/authenkit'
 
 const HeatMap = dynamic(() => import('../../components/HeatMap'), { ssr: false, loading: () => (
   <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#e8edf2', color: '#94a3b8', fontSize: '0.9rem' }}>
@@ -41,6 +43,11 @@ const exportCSV = (data) => {
 }
 
 export default function AnalysisPage() {
+  const [auth, setAuth] = useState(null)
+  const [authLoading, setAuthLoading] = useState(true)
+  const [authError, setAuthError] = useState(null)
+  const [showUnauthorized, setShowUnauthorized] = useState(false)
+
   const [menuOpen, setMenuOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
 
@@ -50,7 +57,42 @@ export default function AnalysisPage() {
   const [duplicates, setDuplicates]   = useState([])
   const [totalCases, setTotalCases]   = useState(0)
 
+  // ── LIFF Init + Admin Check ────────────────────────────────────────────────
   useEffect(() => {
+    const init = async () => {
+      try {
+        const devUserId = process.env.NEXT_PUBLIC_DEV_USER_ID
+        const isLocalhost = typeof window !== 'undefined' && window.location.hostname === 'localhost'
+
+        if (isLocalhost && devUserId) {
+          setAuth({ userId: devUserId, name: 'Dev User' })
+          return
+        }
+
+        await liff.init({ liffId: process.env.NEXT_PUBLIC_LIFF_ID_PROBLEM_SEEKER })
+        if (!liff.isLoggedIn()) { liff.login(); return }
+
+        if (!localStorage.getItem('TU_Smart_Service JWT Token')) {
+          await authenticate({ idToken: liff.getIDToken() })
+        }
+
+        const verifyData = await verify('admin')
+        if (verifyData?.user?.role === 'admin') {
+          setAuth({ userId: verifyData.user.userId, name: verifyData.user.name })
+        } else {
+          setShowUnauthorized(true)
+        }
+      } catch (err) {
+        setAuthError(err?.message ?? 'LIFF initialization failed')
+      } finally {
+        setAuthLoading(false)
+      }
+    }
+    init()
+  }, [])
+
+  useEffect(() => {
+    if (!auth) return
     const api = process.env.NEXT_PUBLIC_API_URL
 
     // Top 5 + Duplicate — ใช้ /cases ชุดเดียว
@@ -85,9 +127,40 @@ export default function AnalysisPage() {
 
   const issueTotal = topIssues.reduce((s, i) => s + i.count, 0)
 
+  if (showUnauthorized) {
+    return (
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#FFE2C2' }}>
+        <div style={{ background: '#fff', borderRadius: '20px', padding: '2.5rem 2rem', width: '340px', maxWidth: '90vw', boxShadow: '0 8px 32px rgba(0,0,0,0.15)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem', textAlign: 'center' }}>
+          <div style={{ width: '64px', height: '64px', borderRadius: '50%', background: '#FEE2E2', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <AlertCircle size={32} color="#EF4444" />
+          </div>
+          <h2 style={{ fontSize: '1.15rem', fontWeight: '700', color: '#111', margin: 0 }}>ไม่มีสิทธิ์เข้าถึง</h2>
+          <p style={{ fontSize: '0.875rem', color: '#666', lineHeight: '1.6', margin: 0 }}>คุณไม่มีสิทธิ์เข้าใช้งานหน้านี้<br />กรุณาติดต่อผู้ดูแลระบบ</p>
+          <button onClick={() => window.history.back()} style={{ marginTop: '0.5rem', padding: '0.65rem 2rem', borderRadius: '10px', border: 'none', background: '#EF4444', color: '#fff', fontSize: '0.9rem', fontWeight: '600', cursor: 'pointer' }}>ย้อนกลับ</button>
+        </div>
+      </div>
+    )
+  }
+
+  if (authLoading) {
+    return (
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#FFE2C2' }}>
+        <p style={{ color: '#aaa', fontSize: '0.9rem' }}>กำลังตรวจสอบสิทธิ์...</p>
+      </div>
+    )
+  }
+
+  if (authError) {
+    return (
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#FFE2C2', padding: '2rem' }}>
+        <p style={{ color: '#EF4444', fontSize: '0.9rem', textAlign: 'center' }}>{authError}</p>
+      </div>
+    )
+  }
+
   return (
     <div style={{ minHeight: '100vh', background: '#f5f5f5', display: 'flex', flexDirection: 'column' }}>
-      <Navbar accountName="Johny Eve" />
+      <Navbar accountName={auth?.name ?? 'Admin'} />
       <div style={{ display: 'flex', flex: 1 }}>
         <Sidebar />
         <main style={{ flex: 1, padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
