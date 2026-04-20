@@ -136,6 +136,14 @@ function buildCaseBubble(c) {
   const heroUrl = (isFinished && c.imageUrlAfter) ? c.imageUrlAfter
     : c.imageUrl || "https://incident-line-tu.s3.us-east-1.amazonaws.com/cases/case_1.jpg";
 
+  // Format date and time
+  const date = new Date(c.createdAt);
+  const day = date.getDate();
+  const month = date.getMonth() + 1;
+  const year = date.getFullYear() + 543; // Convert to Buddhist year
+  const dateStr = `${day}/${month}/${year}`;
+  const timeStr = date.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
+
   const bodyContents = [
     {
       type: "box",
@@ -145,15 +153,44 @@ function buildCaseBubble(c) {
       ],
     },
     { type: "text", text: c.description ?? "-", size: "md", wrap: true },
+    {
+      type: "box",
+      layout: "baseline",
+      contents: [
+        { type: "text", text: "Date : ", flex: 0, size: "sm", color: "#aaaaaa" },
+        { type: "text", text: dateStr, size: "sm", margin: "3px", flex: 0 },
+        { type: "text", text: "Time :", flex: 0, color: "#aaaaaa", size: "sm", margin: "10px" },
+        { type: "text", text: timeStr, size: "sm", flex: 1, margin: "3px" }
+      ]
+    },
   ];
 
   if (isFinished && c.Summary) {
+    // Format finished date and time
+    const finishedDate = c.CompletedAt ? new Date(c.CompletedAt) : new Date(c.updatedAt || c.createdAt);
+    const finishedDay = finishedDate.getDate();
+    const finishedMonth = finishedDate.getMonth() + 1;
+    const finishedYear = finishedDate.getFullYear() + 543;
+    const finishedDateStr = `${finishedDay}/${finishedMonth}/${finishedYear}`;
+    const finishedTimeStr = finishedDate.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
+
     bodyContents.push({ type: "separator", margin: "md" });
     bodyContents.push({
       type: "box", layout: "vertical", margin: "md",
       contents: [
         { type: "text", text: "สรุปการดำเนินงาน", size: "xs", color: "#10B981", weight: "bold" },
         { type: "text", text: c.Summary, size: "sm", color: "#333333", wrap: true, margin: "xs" },
+        {
+          type: "box",
+          layout: "baseline",
+          spacing: "sm",
+          contents: [
+            { type: "text", text: "Date :", color: "#aaaaaa", size: "sm", flex: 0 },
+            { type: "text", text: finishedDateStr, wrap: true, size: "sm", flex: 0, margin: "3px" },
+            { type: "text", text: "Time : ", flex: 0, margin: "10px", size: "sm", color: "#aaaaaa" },
+            { type: "text", text: finishedTimeStr, size: "sm" }
+          ]
+        }
       ],
     });
   }
