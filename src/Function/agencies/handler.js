@@ -274,11 +274,28 @@ export async function handleRegistration(event) {
   const roleError = requireRole(auth.user, ["admin","user"]);
   if (roleError) return withCors(roleError);
 
-  const body = JSON.parse(event.body);
+  const body = JSON.parse(event.body) || "{}";
   const { name, surname, phoneNumber, agencyName, lineUserID, email, imageKey } = body;
 
-  if (!name || !surname || !phoneNumber || !agencyName) {
-    return withCors({ statusCode: 400, body: JSON.stringify({ message: "Missing required fields: name, surname, phoneNumber, agencyName" }) });
+  const requiredFields = { name, surname, phoneNumber, agencyName, lineUserID, email, imageKey };
+
+  // Check for missing required fields
+  const missingFields = Object.entries(requiredFields)
+    .filter(([_, value]) => !value || value.toString().trim() === "")
+    .map(([key, _]) => key);
+
+  if (missingFields.length > 0) {
+    return withCors({ statusCode: 400, body: JSON.stringify({ message: `Missing required fields: ${missingFields.join(", ")}` }) });
+  }
+
+  //Check phone number format
+  if (body.phoneNumber && !/^[0-9]{9,10}$/.test(body.phoneNumber)) {
+    return withCors({ statusCode: 400, body: JSON.stringify({ message: "Invalid phone number. Please enter a valid Thai phone number (e.g., 0XXXXXXXXX)" }) });
+  }
+
+  //Check email format
+  if (body.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(body.email)) {
+    return withCors({ statusCode: 400, body: JSON.stringify({ message: "Invalid email format. Please enter a valid email address (e.g., example@example.com)" }) });
   }
 
   try {
