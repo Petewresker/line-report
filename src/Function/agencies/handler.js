@@ -178,6 +178,27 @@ export async function handleGetPresignUrl(event) {
     return withCors({ statusCode: 400, body: JSON.stringify({ message: "Missing filename or contentType" }) });
   }
 
+  if(!filename.includes(".")) {
+    return withCors({ statusCode: 400, body: JSON.stringify({ message: "Filename must include an extension (e.g., image.jpg)" }) });
+  }
+
+  const allowedExtensions = ["jpg", "jpeg", "png"];
+  const fileExtension = filename.split(".").pop().toLowerCase();
+
+  if (!allowedExtensions.includes(fileExtension)) {
+    return withCors({
+      statusCode: 400,
+      body: JSON.stringify({
+        message: "Invalid file type. Only .jpg, .jpeg, .png are allowed"
+      })
+    });
+  }
+
+  const allowedTypes = ["image/jpeg", "image/png", "image/jpg"];
+  if (!allowedTypes.includes(contentType)) {
+    return withCors({ statusCode: 400, body: JSON.stringify({ message: "Invalid content type. Only JPEG and PNG are allowed." }) });
+  }
+
   try {
     const result = await getAgencyPresignedUrlService(filename, contentType);
     return withCors({ statusCode: 200, body: JSON.stringify(result) });
@@ -355,6 +376,18 @@ export const completeCaseHandler = async (event) => {
       return withCors({ statusCode: 400, body: JSON.stringify({ message: "imageKeyAfter and summary are required" }) });
     }
 
+    const allowedExtensions = ["jpg", "jpeg", "png"];
+    if (imageKeyAfter) {
+      const ext = imageKeyAfter.split(".").pop()?.toLowerCase();
+      if (!allowedExtensions.includes(ext)) {
+        return withCors({
+          statusCode: 400,
+          body: JSON.stringify({
+            message: "Invalid image format. Only .jpg, .jpeg, .png are allowed"
+          })
+        });
+      }
+    }
     const result = await completeCaseService(caseId, imageKeyAfter, summary);
     return withCors({ statusCode: 200, body: JSON.stringify({ message: "Case completed successfully", data: result }) });
   } catch (err) {
