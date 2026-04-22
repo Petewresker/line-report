@@ -143,11 +143,15 @@ export default function AdminDashboard() {
     setSubmitting(true)
     try {
       const caseIds = getRelatedCaseIds(selected)
-      await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/cases/${selected.caseId}/assign`, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/cases/${selected.caseId}/assign`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', "Authorization": `Bearer ${localStorage.getItem("TU_Smart_Service JWT Token")}` },
         body: JSON.stringify({ agencyId: selectedAgency.agencyId, caseIds }),
       })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        throw new Error(data.message || `Server error: ${res.status}`)
+      }
       setCases(prev => prev.map(c => caseIds.includes(c.caseId) ? { ...c, status: 'FORWARD' } : c))
       setSelected(prev => prev ? { ...prev, status: 'FORWARD' } : prev)
       setShowModal(false)
