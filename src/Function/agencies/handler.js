@@ -236,7 +236,10 @@ export async function handleDeleteAgency(event) {
     return withCors({ statusCode: 400, body: JSON.stringify({ message: "Missing agencyId" }) });
   }
   try {
-    await deleteAgencyService(agencyId);
+    const result = await deleteAgencyService(agencyId);
+    if (!result) {
+      return withCors({ statusCode: 404, body: JSON.stringify({ message: "Agency not found" }) });
+    }
     return withCors({ statusCode: 200, body: JSON.stringify({ message: "Agency rejected and deleted" }) });
   } catch (error) {
     return withCors({ statusCode: 500, body: JSON.stringify({ message: error.message }) });
@@ -258,6 +261,9 @@ export async function handleApproveAgency(event) {
   }
   try {
     const result = await approveAgencyService(agencyId);
+    if (!result) {
+      return withCors({ statusCode: 404, body: JSON.stringify({ message: "Agency not found" }) });
+    }
     return withCors({ statusCode: 200, body: JSON.stringify({ message: "Agency approved", agency: result }) });
   } catch (error) {
     return withCors({ statusCode: 500, body: JSON.stringify({ message: error.message }) });
