@@ -133,6 +133,8 @@ export default function AgencyWeb() {
     setLoading(true);
     fetch(`${API}/agencies/${agencyId}/cases`, {
       headers: { userid: userId, agencyid: agencyId, role: "agency" },
+      'Content-Type': 'application/json',
+      "Authorization": `Bearer ${localStorage.getItem("TU_Smart_Service JWT Token")}`
     })
       .then((r) => r.json())
       .then((data) => { setCases(Array.isArray(data) ? data : []); setLoading(false); })
@@ -170,14 +172,14 @@ export default function AgencyWeb() {
         forwardedCases.map((c) =>
           fetch(`${API}/agencies/cases/${c.caseId}/accept`, {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: { "Content-Type": "application/json", "Authorization": `Bearer ${localStorage.getItem("TU_Smart_Service JWT Token")}` },
             body: JSON.stringify({ userId: auth.userId }),
           })
         )
       );
       // Refresh cases
       const res = await fetch(`${API}/agencies/${auth.agencyId}/cases`, {
-        headers: { userid: auth.userId, agencyid: auth.agencyId, role: "agency" },
+        headers: { userid: auth.userId, agencyid: auth.agencyId, role: "agency", "Authorization": `Bearer ${localStorage.getItem("TU_Smart_Service JWT Token")}` },
       });
       const data = await res.json();
       const updated = Array.isArray(data) ? data : [];
@@ -201,7 +203,7 @@ export default function AgencyWeb() {
       // 1. Get presigned URL
       const presignRes = await fetch(`${API}/agencies/presign`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${localStorage.getItem("TU_Smart_Service JWT Token")}` },
         body: JSON.stringify({ filename: sendPhotoFile.name, contentType: sendPhotoFile.type }),
       });
       const { uploadUrl, key } = await presignRes.json();
@@ -209,7 +211,7 @@ export default function AgencyWeb() {
       // 2. Upload photo to S3
       await fetch(uploadUrl, {
         method: "PUT",
-        headers: { "Content-Type": sendPhotoFile.type },
+        headers: { "Content-Type": sendPhotoFile.type, "Authorization": `Bearer ${localStorage.getItem("TU_Smart_Service JWT Token")}` },
         body: sendPhotoFile,
       });
 
@@ -219,7 +221,7 @@ export default function AgencyWeb() {
         inProgressCases.map((c) =>
           fetch(`${API}/agencies/cases/${c.caseId}/complete`, {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: { "Content-Type": "application/json", "Authorization": `Bearer ${localStorage.getItem("TU_Smart_Service JWT Token")}` },
             body: JSON.stringify({ imageKeyAfter: key, summary: summary.trim() }),
           })
         )
@@ -227,7 +229,7 @@ export default function AgencyWeb() {
 
       // 4. Refresh
       const res = await fetch(`${API}/agencies/${auth.agencyId}/cases`, {
-        headers: { userid: auth.userId, agencyid: auth.agencyId, role: "agency" },
+        headers: { userid: auth.userId, agencyid: auth.agencyId, role: "agency", "Authorization": `Bearer ${localStorage.getItem("TU_Smart_Service JWT Token")}` },
       });
       const data = await res.json();
       const updated = Array.isArray(data) ? data : [];
