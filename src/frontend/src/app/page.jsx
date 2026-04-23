@@ -228,6 +228,7 @@ export default function Home() {
             <option value="Public Safety Hazard">Autonomose</option>
             <option value="Public Safety Hazard">Kibibyte</option>
             <option value="Public Safety Hazard">Nanobyte</option>
+            <option value="Public Safety Hazard">Picobyte</option>
           </select>
           <div className="pointer-events-none absolute inset-y-0 right-3 flex items-center">
             <svg className="w-3 h-3 text-gray-500" viewBox="0 0 10 6" fill="currentColor">
