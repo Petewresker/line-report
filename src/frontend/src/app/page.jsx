@@ -93,7 +93,8 @@ export default function Home() {
       if (photoFile) {
         // 1. ขอ presigned URL จาก backend
         const presignedRes = await fetch(
-          `${process.env.NEXT_PUBLIC_API_URL}/cases/presigned-url?filename=${encodeURIComponent(photoFile.name)}&contentType=${encodeURIComponent(photoFile.type)}`
+          `${process.env.NEXT_PUBLIC_API_URL}/cases/presigned-url?filename=${encodeURIComponent(photoFile.name)}&contentType=${encodeURIComponent(photoFile.type)}`,
+          { headers: { "Authorization": `Bearer ${localStorage.getItem("TU_Smart_Service JWT Token")}` } }
         );
         const { uploadUrl, key } = await presignedRes.json();
 
@@ -120,7 +121,10 @@ export default function Home() {
 
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/cases`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${localStorage.getItem("TU_Smart_Service JWT Token")}`,
+        },
         body: JSON.stringify(payload),
       });
 
