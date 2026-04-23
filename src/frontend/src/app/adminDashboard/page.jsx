@@ -108,7 +108,11 @@ export default function AdminDashboard() {
   // ── Fetch Cases (หลัง auth) ────────────────────────────────────────────────
   useEffect(() => {
     if (!auth) return
-    fetch(`${API}/cases?admin=true`)
+    fetch(`${API}/cases?admin=true`, {
+      headers: {
+        "Authorization": `Bearer ${localStorage.getItem("TU_Smart_Service JWT Token")}`
+      }
+    })
       .then((r) => r.json())
       .then((data) => {
         const items = Array.isArray(data) ? data : []
@@ -128,7 +132,11 @@ export default function AdminDashboard() {
     setSelectedAgency(null)
     setShowModal(true)
     setLoadingAgencies(true)
-    fetch(`${process.env.NEXT_PUBLIC_API_URL}/agencies`)
+    fetch(`${process.env.NEXT_PUBLIC_API_URL}/agencies`, {
+      headers: {
+        "Authorization": `Bearer ${localStorage.getItem("TU_Smart_Service JWT Token")}`
+      }
+    })
       .then(r => r.json())
       .then(data => {
         const active = Array.isArray(data.agencies) ? data.agencies.filter(a => a.Status === 'ACTIVE') : []

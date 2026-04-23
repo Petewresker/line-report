@@ -96,7 +96,11 @@ export default function AnalysisPage() {
     const api = process.env.NEXT_PUBLIC_API_URL
 
     // Top 5 + Duplicate — ใช้ /cases ชุดเดียว
-    fetch(`${api}/cases`)
+    fetch(`${api}/cases`, {
+      headers: {
+        "Authorization": `Bearer ${localStorage.getItem("TU_Smart_Service JWT Token")}`
+      }
+    })
       .then((r) => r.json())
       .then((data) => {
         const items = Array.isArray(data) ? data : []
@@ -110,13 +114,21 @@ export default function AnalysisPage() {
       .catch(console.error)
 
     // Heatmap
-    fetch(`${api}/cases/hotspots`)
+    fetch(`${api}/cases/hotspots`, {
+      headers: {
+        "Authorization": `Bearer ${localStorage.getItem("TU_Smart_Service JWT Token")}`
+      }
+    })
       .then((r) => r.json())
       .then((data) => setHotspots((Array.isArray(data) ? data : []).filter((p) => p.lat != null && p.lon != null)))
       .catch(console.error)
 
     // Monthly
-    fetch(`${api}/cases/monthly`)
+    fetch(`${api}/cases/monthly`, {
+      headers: {
+        "Authorization": `Bearer ${localStorage.getItem("TU_Smart_Service JWT Token")}`
+      }
+    })
       .then((r) => r.json())
       .then((data) => {
         const items = Array.isArray(data) ? data : []
