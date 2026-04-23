@@ -17,7 +17,7 @@ const FILTER_TO_STATUS = {
   'เสร็จสิ้น': 'FINISHED',
 }
 
-const RADIUS_M = 500
+const RADIUS_M = 500 // Hello
 
 function haversine(lat1, lon1, lat2, lon2) {
   const R = 6371000
