@@ -222,7 +222,7 @@ export default function Home() {
             <option value="Illegal Dumping & Waste">Illegal Dumping & Waste</option>
             <option value="Public Safety Hazard">Public Safety Hazard</option>
             <option value="Public Safety Hazard">Autonomose</option>
-            <option value="Public Safety Hazard">Autonomose</option>
+            <option value="Public Safety Hazard">Kibibyte</option>
           </select>
           <div className="pointer-events-none absolute inset-y-0 right-3 flex items-center">
             <svg className="w-3 h-3 text-gray-500" viewBox="0 0 10 6" fill="currentColor">
