@@ -9,16 +9,16 @@ const authenticate = async (payload) => {
         });
 
         if (!auth.ok) {
-            liff.logout();
-            liff.login();
-            return;
+            return false;
         }
 
         const { token } = await auth.json();
         localStorage.setItem("TU_Smart_Service JWT Token", token);
+        return true;
 
     } catch (err) {
         console.log("Authenticated failed", err);
+        return false;
     }
 };
 
