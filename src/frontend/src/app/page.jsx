@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import liff from "@line/liff";
-import { authenticate,verify } from "./utils/authenkit";
+import { authenticate, verify } from "./utils/authenkit";
 
 export default function Home() {
   const [profile, setProfile] = useState(null);
@@ -88,20 +88,19 @@ export default function Home() {
     setErrors({});
     setSubmitState("loading");
     try {
-      const token = localStorage.getItem("TU_Smart_Service JWT Token");
-      const authHeader = token ? { Authorization: `Bearer ${token}` } : {};
       let imageKey = null;
 
       if (photoFile) {
         // 1. ขอ presigned URL จาก backend
         const presignedRes = await fetch(
           `${process.env.NEXT_PUBLIC_API_URL}/cases/presigned-url?filename=${encodeURIComponent(photoFile.name)}&contentType=${encodeURIComponent(photoFile.type)}`,
-          { headers: { ...authHeader } }
+          { headers: { 'Content-Type': 'application/json', "Authorization": `Bearer ${localStorage.getItem("TU_Smart_Service JWT Token")}` } },
         );
+
         const { uploadUrl, key } = await presignedRes.json();
 
         // 2. PUT รูปตรงไป S3
-        const s3Res= await fetch(uploadUrl, {
+        const s3Res = await fetch(uploadUrl, {
           method: "PUT",
           body: photoFile,
           headers: { "Content-Type": photoFile.type },
@@ -123,7 +122,7 @@ export default function Home() {
 
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/cases`, {
         method: "POST",
-        headers: { "Content-Type": "application/json", ...authHeader },
+        headers: { 'Content-Type': 'application/json', "Authorization": `Bearer ${localStorage.getItem("TU_Smart_Service JWT Token")}` },
         body: JSON.stringify(payload),
       });
 
@@ -225,7 +224,7 @@ export default function Home() {
             <option value="Illegal Dumping & Waste">Illegal Dumping & Waste</option>
             <option value="Public Safety Hazard">Public Safety Hazard</option>
             <option value="Public Safety Hazard">Autonomose</option>
-            <option value="Public Safety Hazard">Autonomose</option>
+
           </select>
           <div className="pointer-events-none absolute inset-y-0 right-3 flex items-center">
             <svg className="w-3 h-3 text-gray-500" viewBox="0 0 10 6" fill="currentColor">
