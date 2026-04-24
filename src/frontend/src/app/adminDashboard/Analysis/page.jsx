@@ -100,12 +100,17 @@ export default function AnalysisPage() {
       .then((r) => r.json())
       .then((data) => {
         const items = Array.isArray(data) ? data : []
-        const total = items.reduce((s, i) => s + (i.count || 0), 0)
-        setTotalCases(total)
+        setTotalCases(items.length)
 
-        const sorted = [...items].sort((a, b) => b.count - a.count)
-        setTopIssues(sorted.slice(0, 5).map((item, idx) => ({ ...item, color: ISSUE_COLORS[idx] })))
-        setDuplicates(sorted.filter((i) => i.count > 1).slice(0, 8))
+        const titleMap = {}
+        items.forEach((item) => {
+          if (!item.title) return
+          if (!titleMap[item.title]) titleMap[item.title] = { title: item.title, count: 0 }
+          titleMap[item.title].count++
+        })
+        const grouped = Object.values(titleMap).sort((a, b) => b.count - a.count)
+        setTopIssues(grouped.slice(0, 5).map((item, idx) => ({ ...item, color: ISSUE_COLORS[idx] })))
+        setDuplicates(grouped.filter((i) => i.count > 1).slice(0, 8))
       })
       .catch(console.error)
 
@@ -295,16 +300,12 @@ export default function AnalysisPage() {
                       onMouseLeave={(e) => e.currentTarget.style.boxShadow = 'none'}
                     >
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <span style={{ fontSize: '0.72rem', color: '#aaa' }}>{c.cases?.length} เคส</span>
+                        <span style={{ fontSize: '0.72rem', color: '#aaa' }}>{c.count} เคส</span>
                         <span style={{ fontSize: '0.7rem', fontWeight: '600', padding: '0.2rem 0.55rem', borderRadius: '20px', background: badge.bg, color: badge.text, display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
                           <RefreshCw size={10} /> {c.count} Times
                         </span>
                       </div>
                       <p style={{ fontSize: '0.9rem', fontWeight: '700', color: '#111', lineHeight: '1.3' }}>{c.title}</p>
-                      <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.3rem', fontSize: '0.75rem', color: '#888' }}>
-                        <MapPin size={12} style={{ flexShrink: 0, marginTop: '1px' }} />
-                        <span>{c.lat?.toFixed(4)}, {c.lon?.toFixed(4)}</span>
-                      </div>
                     </div>
                   )
                 })}
