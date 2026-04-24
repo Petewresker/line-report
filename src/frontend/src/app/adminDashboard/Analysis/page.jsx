@@ -123,7 +123,7 @@ export default function AnalysisPage() {
         setMonthlyData(items.map((d) => ({ month: thaiMonth(d.month), cases: d.count })))
       })
       .catch(console.error)
-  }, [])
+  }, [auth])
 
   const issueTotal = topIssues.reduce((s, i) => s + i.count, 0)
 
