@@ -108,7 +108,7 @@ export default function AdminDashboard() {
   // ── Fetch Cases (หลัง auth) ────────────────────────────────────────────────
   useEffect(() => {
     if (!auth) return
-    fetch(`${API}/cases?admin=true`)
+    fetch(`${API}/cases?admin=true`, { headers: { 'Content-Type': 'application/json', "Authorization": `Bearer ${localStorage.getItem("TU_Smart_Service JWT Token")}` } })
       .then((r) => r.json())
       .then((data) => {
         const items = Array.isArray(data) ? data : []
@@ -128,7 +128,7 @@ export default function AdminDashboard() {
     setSelectedAgency(null)
     setShowModal(true)
     setLoadingAgencies(true)
-    fetch(`${process.env.NEXT_PUBLIC_API_URL}/agencies`)
+    fetch(`${process.env.NEXT_PUBLIC_API_URL}/agencies`, { headers: { 'Content-Type': 'application/json', "Authorization": `Bearer ${localStorage.getItem("TU_Smart_Service JWT Token")}` } })
       .then(r => r.json())
       .then(data => {
         const active = Array.isArray(data.agencies) ? data.agencies.filter(a => a.Status === 'ACTIVE') : []
@@ -143,10 +143,11 @@ export default function AdminDashboard() {
     setSubmitting(true)
     try {
       const caseIds = getRelatedCaseIds(selected)
-      await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/cases/${selected.caseId}/assign`, {
+      //Intrigrate with line liff
+      await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/cases/${selected.caseId}/assign`,{
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', "Authorization": `Bearer ${localStorage.getItem("TU_Smart_Service JWT Token")}` },
-        body: JSON.stringify({ agencyId: selectedAgency.agencyId, caseIds }),
+        headers: {'Content-Type':'application/json',"Authorization":`Bearer ${localStorage.getItem("TU_Smart_Service JWT Token")}`},
+        body: JSON.stringify({agencyId: selectedAgency.agencyId , caseIds})
       })
       setCases(prev => prev.map(c => caseIds.includes(c.caseId) ? { ...c, status: 'FORWARD' } : c))
       setSelected(prev => prev ? { ...prev, status: 'FORWARD' } : prev)
