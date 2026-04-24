@@ -201,7 +201,7 @@ export default function AnalysisPage() {
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.3rem' }}>
                         <span style={{ fontSize: '0.82rem', fontWeight: '500', color: '#333' }}>{issue.title}</span>
                         <span style={{ fontSize: '0.78rem', color: issue.color, fontWeight: '600' }}>
-                          {issue.count.toLocaleString()} รายการ ({pct}%)
+                          {(issue.count ?? 0).toLocaleString()} รายการ ({pct}%)
                         </span>
                       </div>
                       <div style={{ height: '6px', borderRadius: '99px', background: '#f0f0f0', overflow: 'hidden' }}>
