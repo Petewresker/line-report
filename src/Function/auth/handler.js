@@ -38,7 +38,8 @@ export async function login(event) {
           userId: user.userId,
           role: user.role,
           name: user.name,
-          ...(user.agencyId && { agencyId: user.agencyId })
+          ...(user.agencyId && { agencyId: user.agencyId }),
+          ...(user.adminId && { adminId: user.adminId })
         }
       })
     };
@@ -83,7 +84,8 @@ export async function verify(event) {
           userId: decoded.userId,
           role: decoded.role,
           name: decoded.name,
-          ...(decoded.agencyId && { agencyId: decoded.agencyId })
+          ...(decoded.agencyId && { agencyId: decoded.agencyId }),
+          ...(decoded.adminId && { adminId: decoded.adminId })
         }
       })
     };

@@ -14,26 +14,27 @@ export const handler = async (event) => {
     //API เทสระบบว่ามีปลายทางไหม
     if (httpMethod === 'OPTIONS') return { statusCode: 200, headers: CORS_HEADERS, body: '' }
 
-    if (httpMethod === 'GET' && path === '/cases/presigned-url') return getPresignedUrl(event)
-    if (httpMethod === 'GET' && path === '/cases')       return getCasesByUser(event)
-    if (httpMethod === 'POST' && path.includes('/edit')) return editCaseHandler(event)
-    if (httpMethod === 'POST' && path === '/cases') return createCase(event)
-    if (httpMethod === 'DELETE' && path === '/cases') return deleteCase(event)
-
+    if (httpMethod === 'GET' && resource === '/cases/presigned-url') return getPresignedUrl(event)
+    if (httpMethod === 'GET' && resource === '/cases')       return getCasesByUser(event)
+    if (httpMethod === 'POST' && resource === '/cases/{caseId}/edit') return editCaseHandler(event)
+    if (httpMethod === 'POST' && resource === '/cases') return createCase(event)
+    if (httpMethod === 'DELETE' && resource === '/cases') return deleteCase(event)
+    if (httpMethod === 'DELETE' && resource === '/cases/{caseId}') return deleteByCaseId(event)
+      
     //สําหรับการวิเคราะห์ข้อมูล
-    if (httpMethod === 'GET' && path === '/cases/hotspots') return gethotspot()
-    if (httpMethod === 'GET' && path === '/cases/trends') return getTrends()
-    if (httpMethod === 'GET' && path === '/cases/resolution') return getResolution()
-    if (httpMethod === 'GET' && path === '/cases/monthly') return getMonthlyReport()
+    if (httpMethod === 'GET' && resource === '/cases/hotspots') return gethotspot(event)
+    if (httpMethod === 'GET' && resource === '/cases/trends') return getTrends(event)
+    if (httpMethod === 'GET' && resource === '/cases/resolution') return getResolution(event)
+    if (httpMethod === 'GET' && resource === '/cases/monthly') return getMonthlyReport(event)
 
     //วิเคราะห์ข้อมูล
-    if (httpMethod === 'DELETE' && path === '/cases/all') return deleteAllCases()
-    if (httpMethod === 'POST' && path === '/cases/mockpost') return seedMockCases()
+    if (httpMethod === 'DELETE' && resource === '/cases/all') return deleteAllCases(event)
+    if (httpMethod === 'POST' && resource === '/cases/mockpost') return seedMockCases(event)
 
     return {
       statusCode: 404,
       headers: CORS_HEADERS,
-      body: JSON.stringify({ error: 'Not found', path, httpMethod }),
+      body: JSON.stringify({ error: 'Not found', resource, httpMethod }),
     }
   } catch (error) {
     console.error('Unhandled error:', error)

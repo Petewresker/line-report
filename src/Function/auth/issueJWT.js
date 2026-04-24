@@ -13,6 +13,10 @@ export function create(user) {
     payload.agencyId = user.agencyId;
   }
   
+  if (user.adminId) {
+    payload.adminId = user.adminId;
+  }
+  
   const token = jwt.sign(
     payload,
     process.env.JWT_SECRET,
