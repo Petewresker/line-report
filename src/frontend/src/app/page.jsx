@@ -88,12 +88,15 @@ export default function Home() {
     setErrors({});
     setSubmitState("loading");
     try {
+      const token = localStorage.getItem("TU_Smart_Service JWT Token");
+      const authHeader = token ? { Authorization: `Bearer ${token}` } : {};
       let imageKey = null;
 
       if (photoFile) {
         // 1. ขอ presigned URL จาก backend
         const presignedRes = await fetch(
-          `${process.env.NEXT_PUBLIC_API_URL}/cases/presigned-url?filename=${encodeURIComponent(photoFile.name)}&contentType=${encodeURIComponent(photoFile.type)}`
+          `${process.env.NEXT_PUBLIC_API_URL}/cases/presigned-url?filename=${encodeURIComponent(photoFile.name)}&contentType=${encodeURIComponent(photoFile.type)}`,
+          { headers: { ...authHeader } }
         );
         const { uploadUrl, key } = await presignedRes.json();
 
@@ -120,7 +123,7 @@ export default function Home() {
 
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/cases`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...authHeader },
         body: JSON.stringify(payload),
       });
 
