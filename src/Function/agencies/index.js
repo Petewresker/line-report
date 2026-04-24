@@ -28,7 +28,7 @@ export const handler = async (event) => {
 
     //==================================== GET ====================================
     if (httpMethod === "GET" && resource === "/agencies/me") { return await handleGetMyAgency(event);}
-    if (httpMethod === "GET" && resource === "/agencies") { return await handleGetAllAgencies(); }
+    if (httpMethod === "GET" && resource === "/agencies") { return await handleGetAllAgencies(event); }
     if (httpMethod === "GET" && resource === "/agencies/{agencyId}/cases/{caseId}") { return await handleGetCaseById(event);}
     //จริงๆแล้วต้องเป็น admin แต่ช่างมันก่อน ***ติดไว้
     if (httpMethod === "GET" && resource === "/agencies/{agencyId}/cases") { return await handleGetCasesByAgencyId(event); }
@@ -41,7 +41,7 @@ export const handler = async (event) => {
     if (httpMethod === "POST" && resource === "/agencies/{agencyId}/approve") { return await handleApproveAgency(event);}
 
     //==================================== DELETE ====================================
-    if (httpMethod === "DELETE" && resource === "/agencies/all") { return await handleDeleteAllAgencies(); }
+    if (httpMethod === "DELETE" && resource === "/agencies/all") { return await handleDeleteAllAgencies(event); }
     if (httpMethod === "POST" && resource === "/agencies/{agencyId}/reject") { return await handleDeleteAgency(event);}
 
     return {
