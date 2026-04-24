@@ -91,7 +91,7 @@ export default function AgencyRegister() {
       if (photoFile) {
         const presignRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/agencies/presign`, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: { "Content-Type": "application/json", "Authorization": `Bearer ${localStorage.getItem("TU_Smart_Service JWT Token")}` },
           body: JSON.stringify({ filename: photoFile.name, contentType: photoFile.type }),
         });
         if (!presignRes.ok) throw new Error("ขอ presigned URL ไม่สำเร็จ");
@@ -111,6 +111,7 @@ export default function AgencyRegister() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          "Authorization": `Bearer ${localStorage.getItem("TU_Smart_Service JWT Token")}`,
           userid: profile?.userId ?? "",
         },
         body: JSON.stringify({
