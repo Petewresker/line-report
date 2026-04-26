@@ -1,12 +1,10 @@
 import { randomUUID } from 'crypto'
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb'
 //ใช้คำสั่ง ScanCommand ของ DynamoDB เพื่อดึงข้อมูลทั้งหมดใน Table
-import { DynamoDBDocumentClient, ScanCommand, PutCommand, DeleteCommand } from '@aws-sdk/lib-dynamodb'
+import { DynamoDBDocumentClient, QueryCommand, ScanCommand, PutCommand, GetCommand, UpdateCommand } from '@aws-sdk/lib-dynamodb'
 import crypto from 'node:crypto'
 import { S3Client, PutObjectCommand ,GetObjectCommand } from '@aws-sdk/client-s3'
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
-import { mockData } from './mockData.js'
-
 // For DyamoDB Local testing
 const clientConfig = {}
 console.log('DYNAMODB_ENDPOINT=', process.env.DYNAMODB_ENDPOINT)
@@ -123,52 +121,68 @@ export const getPresignedUrlService = async (filename, contentType) => {
 }
 
 export const editCaseService = async (caseId, data) => {
-
-}
-
-export const deleteCasesByUserService = async (userId) => {
-  const result = await client.send(new ScanCommand({
+  // Verify case exists
+  const getResult = await client.send(new GetCommand({
     TableName: process.env.TABLE_TABLE_NAME,
-    FilterExpression: 'userId = :userId',
-    ExpressionAttributeValues: { ':userId': userId },
-    ProjectionExpression: 'PK, SK',
+    Key: {
+      PK: `CASE#${caseId}`,
+      SK: 'METADATA',
+    },
   }))
 
-  await Promise.all(
-    result.Items.map((item) =>
-      client.send(new DeleteCommand({
-        TableName: process.env.TABLE_TABLE_NAME,
-        Key: { PK: item.PK, SK: item.SK },
-      }))
-    )
-  )
+  if (!getResult.Item) {
+    throw new Error('Case not found')
+  }
 
-  return { deleted: result.Items.length }
-}
+  // Build update expression dynamically
+  const updateExpressionParts = []
+  const expressionAttributeNames = {}
+  const expressionAttributeValues = {}
 
-export const deleteAllCasesService = async () => {
-  let lastKey
-  let deleted = 0
-  do {
-    const result = await client.send(new ScanCommand({
-      TableName: process.env.TABLE_TABLE_NAME,
-      FilterExpression: 'begins_with(PK, :prefix)',
-      ExpressionAttributeValues: { ':prefix': 'CASE#' },
-      ProjectionExpression: 'PK, SK',
-      ExclusiveStartKey: lastKey,
-    }))
-    await Promise.all(
-      result.Items.map((item) =>
-        client.send(new DeleteCommand({
-          TableName: process.env.TABLE_TABLE_NAME,
-          Key: { PK: item.PK, SK: item.SK },
-        }))
-      )
-    )
-    deleted += result.Items.length
-    lastKey = result.LastEvaluatedKey
-  } while (lastKey)
-  return { deleted }
+  if (data.description !== undefined) {
+    updateExpressionParts.push('#desc = :description')
+    expressionAttributeNames['#desc'] = 'description'
+    expressionAttributeValues[':description'] = data.description
+  }
+
+  if (data.location) {
+    if (data.location.lat !== undefined) {
+      updateExpressionParts.push('lat = :lat')
+      expressionAttributeValues[':lat'] = data.location.lat
+    }
+    if (data.location.long !== undefined) {
+      updateExpressionParts.push('lon = :lon')
+      expressionAttributeValues[':lon'] = data.location.long
+    }
+  }
+
+  if (data.imageUrlBefore !== undefined) {
+    updateExpressionParts.push('imageUrlBefore = :imageUrlBefore')
+    expressionAttributeValues[':imageUrlBefore'] = data.imageUrlBefore
+  }
+
+  if (updateExpressionParts.length === 0) {
+    throw new Error('No fields to update')
+  }
+
+  //update timestamp
+  updateExpressionParts.push('updatedAt = :updatedAt')
+  expressionAttributeValues[':updatedAt'] = new Date().toISOString()
+
+  // Execute update
+  const updateResult = await client.send(new UpdateCommand({
+    TableName: process.env.TABLE_TABLE_NAME,
+    Key: {
+      PK: `CASE#${caseId}`,
+      SK: 'METADATA',
+    },
+    UpdateExpression: 'SET ' + updateExpressionParts.join(', '),
+    ...(Object.keys(expressionAttributeNames).length > 0 && { ExpressionAttributeNames: expressionAttributeNames }),
+    ExpressionAttributeValues: expressionAttributeValues,
+    ReturnValues: 'ALL_NEW',
+  }))
+
+  return updateResult.Attributes
 }
 
 export const getCasesByUserService = async (userId) => {
@@ -192,32 +206,6 @@ export const getCasesByUserService = async (userId) => {
 
 
 
-
-//Loop MockData Test
-export const postCaseService = async () => {
-  const results = []
-
-  for (const mock of mockData) {
-    try {
-      const item = await createCaseService({
-        title: mock.title,
-        description: mock.description,
-        userId: mock.userId,
-        lat: mock.lat,
-        lon: mock.lon,
-        imageUrlBefore: mock.imageUrlBefore,
-      })
-      results.push({ caseId: item.caseId, title: mock.title, status: 'success' })
-    } catch (error) {
-      results.push({ title: mock.title, status: 'failed', error: error.message })
-    }
-  }
-
-  return {
-    message: `Seeded ${results.filter((r) => r.status === 'success').length}/${mockData.length} cases`,
-    results,
-  }
-}
 
 export const createCaseService = async (caseInformation) => {
   const caseId = crypto.randomUUID()
@@ -366,18 +354,3 @@ export const ResolutionTime = async () =>{
   return Resolution;
 };
 
-// DELETE /cases/{caseId}
-export const deleteByCaseIdService = async (caseId) => {
-  await client.send(new DeleteCommand({
-    TableName: process.env.TABLE_TABLE_NAME,
-    Key: {
-      PK: `CASE#${caseId}`,
-      SK: 'METADATA',
-    },
-  }))
-
-  return {
-    message: 'Case deleted successfully',
-    caseId,
-  }
-}
