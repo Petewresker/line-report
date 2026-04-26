@@ -68,7 +68,7 @@ export default function RegistrationPage() {
   const fetchAgencies = async () => {
     setLoading(true)
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/agencies`)
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/agencies`, { headers: { 'Content-Type': 'application/json', "Authorization": `Bearer ${localStorage.getItem("TU_Smart_Service JWT Token")}` } })
       const data = await res.json()
       const pending = (data.agencies || []).filter((a) => a.Status === 'PENDING_REVIEW')
       setItems(pending)
@@ -85,6 +85,7 @@ export default function RegistrationPage() {
     try {
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/agencies/${agencyId}/approve`, {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json', "Authorization": `Bearer ${localStorage.getItem("TU_Smart_Service JWT Token")}` },
       })
       if (!res.ok) throw new Error(`Server error: ${res.status}`)
       setItems((prev) => prev.map((item) => item.AgencyID === agencyId ? { ...item, Status: 'ACTIVE' } : item))
@@ -101,6 +102,7 @@ export default function RegistrationPage() {
     try {
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/agencies/${agencyId}/reject`, {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json', "Authorization": `Bearer ${localStorage.getItem("TU_Smart_Service JWT Token")}` },
       })
       if (!res.ok) throw new Error(`Server error: ${res.status}`)
       const remaining = items.filter((item) => item.AgencyID !== agencyId)

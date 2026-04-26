@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import liff from "@line/liff";
-import { authenticate,verify } from "./utils/authenkit";
+import { authenticate, verify } from "./utils/authenkit";
 
 export default function Home() {
   const [profile, setProfile] = useState(null);
@@ -44,23 +44,41 @@ export default function Home() {
           return;
         }
 
-        if (!localStorage.getItem("TU_Smart_Service JWT Token")) {
-          const userProfile = await liff.getProfile();
-          setProfile(userProfile);
-          setLiffReady(true);
-          await authenticate({ idToken: liff.getIDToken() });
-        } else {
+        // Try existing token first
+        const stored = localStorage.getItem("TU_Smart_Service JWT Token");
+        if (stored) {
           const verifyData = await verify();
-
-          if (verifyData && ["user", "admin", "agency"].includes(verifyData.user.role)) {
+          if (verifyData && ["user", "admin", "agency"].includes(verifyData?.user?.role)) {
             const userProfile = await liff.getProfile();
             setProfile(userProfile);
             setLiffReady(true);
-          } else {
-            localStorage.removeItem("TU_Smart_Service JWT Token");
-            liff.login();
+            sessionStorage.removeItem("loginRedirectCount");
+            return;
           }
+          localStorage.removeItem("TU_Smart_Service JWT Token");
         }
+
+        // Authenticate with current LINE session (no extra redirect needed)
+        const success = await authenticate({ idToken: liff.getIDToken() });
+
+        if (!success) {
+          // Backend auth failed — guard against infinite redirect loop
+          const count = parseInt(sessionStorage.getItem("loginRedirectCount") || "0");
+          if (count >= 2) {
+            sessionStorage.removeItem("loginRedirectCount");
+            setLiffError("การเข้าสู่ระบบล้มเหลว กรุณาปิดแล้วเปิดแอปใหม่อีกครั้ง");
+            return;
+          }
+          sessionStorage.setItem("loginRedirectCount", String(count + 1));
+          liff.logout();
+          liff.login();
+          return;
+        }
+
+        sessionStorage.removeItem("loginRedirectCount");
+        const userProfile = await liff.getProfile();
+        setProfile(userProfile);
+        setLiffReady(true);
 
       } catch (err) {
         console.error("LIFF Initialization failed", err);
@@ -93,12 +111,14 @@ export default function Home() {
       if (photoFile) {
         // 1. ขอ presigned URL จาก backend
         const presignedRes = await fetch(
-          `${process.env.NEXT_PUBLIC_API_URL}/cases/presigned-url?filename=${encodeURIComponent(photoFile.name)}&contentType=${encodeURIComponent(photoFile.type)}`
+          `${process.env.NEXT_PUBLIC_API_URL}/cases/presigned-url?filename=${encodeURIComponent(photoFile.name)}&contentType=${encodeURIComponent(photoFile.type)}`,
+          { headers: { 'Content-Type': 'application/json', "Authorization": `Bearer ${localStorage.getItem("TU_Smart_Service JWT Token")}` } },
         );
+
         const { uploadUrl, key } = await presignedRes.json();
 
         // 2. PUT รูปตรงไป S3
-        const s3Res= await fetch(uploadUrl, {
+        const s3Res = await fetch(uploadUrl, {
           method: "PUT",
           body: photoFile,
           headers: { "Content-Type": photoFile.type },
@@ -120,7 +140,7 @@ export default function Home() {
 
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/cases`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { 'Content-Type': 'application/json', "Authorization": `Bearer ${localStorage.getItem("TU_Smart_Service JWT Token")}` },
         body: JSON.stringify(payload),
       });
 
