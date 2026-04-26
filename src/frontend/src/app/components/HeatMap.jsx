@@ -64,5 +64,18 @@ export default function HeatMap({ points = [], searchTarget = '' }) {
     heatLayerRef.current.setLatLngs(heatPoints)
   }, [points])
 
+  // บินไปสถานที่ที่ค้นหา
+  useEffect(() => {
+    if (!searchTarget || !instanceRef.current) return
+    fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(searchTarget)}&format=json&limit=1`)
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.length === 0) return
+        const { lat, lon } = data[0]
+        instanceRef.current.flyTo([parseFloat(lat), parseFloat(lon)], 16, { duration: 1.2 })
+      })
+      .catch(console.error)
+  }, [searchTarget])
+
   return <div ref={mapRef} style={{ width: '100%', height: '100%' }} />
 }
