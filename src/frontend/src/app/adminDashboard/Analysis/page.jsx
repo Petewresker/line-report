@@ -50,6 +50,7 @@ export default function AnalysisPage() {
 
   const [menuOpen, setMenuOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
+  const [searchTarget, setSearchTarget] = useState('')
 
   const [topIssues, setTopIssues]     = useState([])
   const [hotspots, setHotspots]       = useState([])
@@ -228,15 +229,16 @@ export default function AnalysisPage() {
                 <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '0.5rem', border: '1px solid #e5e5e5', borderRadius: '8px', padding: '0.45rem 0.85rem' }}>
                   <Search size={15} color="#aaa" />
                   <input type="text" placeholder="บริเวณที่ต้องการตรวจสอบ (เช่น มหาวิทยาลัย, ซอย, ถนน ...)" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === 'Enter') setSearchTarget(searchQuery) }}
                     style={{ border: 'none', outline: 'none', background: 'transparent', fontSize: '0.85rem', width: '100%', color: '#333' }} />
                 </div>
-                <button style={{ padding: '0.45rem 1.25rem', borderRadius: '8px', border: '1.5px solid #3B82F6', background: '#fff', color: '#3B82F6', fontSize: '0.85rem', fontWeight: '600', cursor: 'pointer', transition: 'all 0.15s' }}
+                <button onClick={() => setSearchTarget(searchQuery)} style={{ padding: '0.45rem 1.25rem', borderRadius: '8px', border: '1.5px solid #3B82F6', background: '#fff', color: '#3B82F6', fontSize: '0.85rem', fontWeight: '600', cursor: 'pointer', transition: 'all 0.15s' }}
                   onMouseEnter={(e) => { e.currentTarget.style.background = '#3B82F6'; e.currentTarget.style.color = '#fff' }}
                   onMouseLeave={(e) => { e.currentTarget.style.background = '#fff'; e.currentTarget.style.color = '#3B82F6' }}
                 >ค้นหา</button>
               </div>
               <div style={{ flex: 1, overflow: 'hidden' }}>
-                <HeatMap points={hotspots} />
+                <HeatMap points={hotspots} searchTarget={searchTarget} />
               </div>
             </div>
           </div>
