@@ -1,7 +1,7 @@
 import { randomUUID } from 'crypto'
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb'
 //ใช้คำสั่ง ScanCommand ของ DynamoDB เพื่อดึงข้อมูลทั้งหมดใน Table
-import { DynamoDBDocumentClient, QueryCommand, ScanCommand, PutCommand, GetCommand, UpdateCommand } from '@aws-sdk/lib-dynamodb'
+import { DynamoDBDocumentClient, QueryCommand, ScanCommand, PutCommand, GetCommand, UpdateCommand, BatchWriteCommand } from '@aws-sdk/lib-dynamodb'
 import crypto from 'node:crypto'
 import { S3Client, PutObjectCommand ,GetObjectCommand } from '@aws-sdk/client-s3'
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
@@ -234,6 +234,38 @@ export const createCaseService = async (caseInformation) => {
   return item
 }
 
+
+export const deleteAllCasesService = async () => {
+  const scanResult = await client.send(new ScanCommand({
+    TableName: process.env.TABLE_TABLE_NAME,
+    FilterExpression: 'begins_with(PK, :prefix)',
+    ExpressionAttributeValues: { ':prefix': 'CASE#' },
+    ProjectionExpression: 'PK, SK',
+  }))
+
+  const items = scanResult.Items
+  if (!items || items.length === 0) return { deleted: 0 }
+
+  // DynamoDB BatchWrite จำกัด 25 items ต่อ request
+  const chunks = []
+  for (let i = 0; i < items.length; i += 25) {
+    chunks.push(items.slice(i, i + 25))
+  }
+
+  await Promise.all(
+    chunks.map((chunk) =>
+      client.send(new BatchWriteCommand({
+        RequestItems: {
+          [process.env.TABLE_TABLE_NAME]: chunk.map((item) => ({
+            DeleteRequest: { Key: { PK: item.PK, SK: item.SK } },
+          })),
+        },
+      }))
+    )
+  )
+
+  return { deleted: items.length }
+}
 
 export const monthlyReportService = async () => {
   const result = await client.send(new ScanCommand({
