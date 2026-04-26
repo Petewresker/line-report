@@ -132,9 +132,7 @@ export default function AgencyWeb() {
     const { userId, agencyId } = auth;
     setLoading(true);
     fetch(`${API}/agencies/${agencyId}/cases`, {
-      headers: { userid: userId, agencyid: agencyId, role: "agency" },
-      'Content-Type': 'application/json',
-      "Authorization": `Bearer ${localStorage.getItem("TU_Smart_Service JWT Token")}`
+      headers: { 'Content-Type': 'application/json', "Authorization": `Bearer ${localStorage.getItem("TU_Smart_Service JWT Token")}`, userid: userId, agencyid: agencyId, role: "agency" },
     })
       .then((r) => r.json())
       .then((data) => { setCases(Array.isArray(data) ? data : []); setLoading(false); })
@@ -179,7 +177,7 @@ export default function AgencyWeb() {
       );
       // Refresh cases
       const res = await fetch(`${API}/agencies/${auth.agencyId}/cases`, {
-        headers: { userid: auth.userId, agencyid: auth.agencyId, role: "agency", "Authorization": `Bearer ${localStorage.getItem("TU_Smart_Service JWT Token")}` },
+        headers: { 'Content-Type': 'application/json', "Authorization": `Bearer ${localStorage.getItem("TU_Smart_Service JWT Token")}`, userid: auth.userId, agencyid: auth.agencyId, role: "agency" },
       });
       const data = await res.json();
       const updated = Array.isArray(data) ? data : [];
@@ -229,7 +227,7 @@ export default function AgencyWeb() {
 
       // 4. Refresh
       const res = await fetch(`${API}/agencies/${auth.agencyId}/cases`, {
-        headers: { userid: auth.userId, agencyid: auth.agencyId, role: "agency", "Authorization": `Bearer ${localStorage.getItem("TU_Smart_Service JWT Token")}` },
+        headers: { 'Content-Type': 'application/json', "Authorization": `Bearer ${localStorage.getItem("TU_Smart_Service JWT Token")}`, userid: auth.userId, agencyid: auth.agencyId, role: "agency" },
       });
       const data = await res.json();
       const updated = Array.isArray(data) ? data : [];

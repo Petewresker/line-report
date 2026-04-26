@@ -96,46 +96,39 @@ export default function AnalysisPage() {
     const api = process.env.NEXT_PUBLIC_API_URL
 
     // Top 5 + Duplicate — ใช้ /cases ชุดเดียว
-    fetch(`${api}/cases`, {
-      headers: {
-        "Authorization": `Bearer ${localStorage.getItem("TU_Smart_Service JWT Token")}`
-      }
-    })
+    fetch(`${api}/cases`, { headers: { 'Content-Type': 'application/json', "Authorization": `Bearer ${localStorage.getItem("TU_Smart_Service JWT Token")}` } })
       .then((r) => r.json())
       .then((data) => {
         const items = Array.isArray(data) ? data : []
-        const total = items.reduce((s, i) => s + (i.count || 0), 0)
-        setTotalCases(total)
+        setTotalCases(items.length)
 
-        const sorted = [...items].sort((a, b) => b.count - a.count)
-        setTopIssues(sorted.slice(0, 5).map((item, idx) => ({ ...item, color: ISSUE_COLORS[idx] })))
-        setDuplicates(sorted.filter((i) => i.count > 1).slice(0, 8))
+        const titleMap = {}
+        items.forEach((item) => {
+          if (!item.title) return
+          if (!titleMap[item.title]) titleMap[item.title] = { title: item.title, count: 0 }
+          titleMap[item.title].count++
+        })
+        const grouped = Object.values(titleMap).sort((a, b) => b.count - a.count)
+        setTopIssues(grouped.slice(0, 5).map((item, idx) => ({ ...item, color: ISSUE_COLORS[idx] })))
+        setDuplicates(grouped.filter((i) => i.count > 1).slice(0, 8))
       })
       .catch(console.error)
 
     // Heatmap
-    fetch(`${api}/cases/hotspots`, {
-      headers: {
-        "Authorization": `Bearer ${localStorage.getItem("TU_Smart_Service JWT Token")}`
-      }
-    })
+    fetch(`${api}/cases/hotspots`, { headers: { 'Content-Type': 'application/json', "Authorization": `Bearer ${localStorage.getItem("TU_Smart_Service JWT Token")}` } })
       .then((r) => r.json())
       .then((data) => setHotspots((Array.isArray(data) ? data : []).filter((p) => p.lat != null && p.lon != null)))
       .catch(console.error)
 
     // Monthly
-    fetch(`${api}/cases/monthly`, {
-      headers: {
-        "Authorization": `Bearer ${localStorage.getItem("TU_Smart_Service JWT Token")}`
-      }
-    })
+    fetch(`${api}/cases/monthly`, { headers: { 'Content-Type': 'application/json', "Authorization": `Bearer ${localStorage.getItem("TU_Smart_Service JWT Token")}` } })
       .then((r) => r.json())
       .then((data) => {
         const items = Array.isArray(data) ? data : []
         setMonthlyData(items.map((d) => ({ month: thaiMonth(d.month), cases: d.count })))
       })
       .catch(console.error)
-  }, [])
+  }, [auth])
 
   const issueTotal = topIssues.reduce((s, i) => s + i.count, 0)
 
@@ -213,7 +206,7 @@ export default function AnalysisPage() {
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.3rem' }}>
                         <span style={{ fontSize: '0.82rem', fontWeight: '500', color: '#333' }}>{issue.title}</span>
                         <span style={{ fontSize: '0.78rem', color: issue.color, fontWeight: '600' }}>
-                          {issue.count.toLocaleString()} รายการ ({pct}%)
+                          {(issue.count ?? 0).toLocaleString()} รายการ ({pct}%)
                         </span>
                       </div>
                       <div style={{ height: '6px', borderRadius: '99px', background: '#f0f0f0', overflow: 'hidden' }}>
@@ -307,16 +300,12 @@ export default function AnalysisPage() {
                       onMouseLeave={(e) => e.currentTarget.style.boxShadow = 'none'}
                     >
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <span style={{ fontSize: '0.72rem', color: '#aaa' }}>{c.cases?.length} เคส</span>
+                        <span style={{ fontSize: '0.72rem', color: '#aaa' }}>{c.count} เคส</span>
                         <span style={{ fontSize: '0.7rem', fontWeight: '600', padding: '0.2rem 0.55rem', borderRadius: '20px', background: badge.bg, color: badge.text, display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
                           <RefreshCw size={10} /> {c.count} Times
                         </span>
                       </div>
                       <p style={{ fontSize: '0.9rem', fontWeight: '700', color: '#111', lineHeight: '1.3' }}>{c.title}</p>
-                      <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.3rem', fontSize: '0.75rem', color: '#888' }}>
-                        <MapPin size={12} style={{ flexShrink: 0, marginTop: '1px' }} />
-                        <span>{c.lat?.toFixed(4)}, {c.lon?.toFixed(4)}</span>
-                      </div>
                     </div>
                   )
                 })}
