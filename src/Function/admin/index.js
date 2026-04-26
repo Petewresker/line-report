@@ -1,5 +1,5 @@
 // admin/index.js
-import { assignReport, handleCreateAdmin, handleDeleteAdmin, handleGetMyAdmin } from './handler.js'
+import { assignReport, handleCreateAdmin, handleDeleteAdmin, handleGetMyAdmin, rejectCase } from './handler.js'
 import jwt from 'jsonwebtoken'
 import { fromHeader ,verify as JWTverify} from './extractJWT.js'
 
@@ -64,6 +64,14 @@ export const handler = async (event) => {
         return authError; 
       const { caseId } = pathParameters || {}
       return assignReport({ ...event, caseId })
+    }
+
+    if (httpMethod === 'POST' && resource === '/admin/cases/{caseId}/reject') {
+      const authError = requireRole(event, 'admin');
+      if (authError) 
+        return authError; 
+      const { caseId } = pathParameters || {}
+      return rejectCase({ ...event, caseId })
     }
 
     // ===================================== DELETE ====================================
