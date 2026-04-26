@@ -1,5 +1,5 @@
 // handler.js - validate แล้วเรียก service
-import { editCaseService, getCasesByUserService, getAllCasesService, getAllCasesAdminService, createCaseService, getPresignedUrlService, HostspotService, trendAnalysisService, ResolutionTime, monthlyReportService, deleteAllCasesService } from './service.js'
+import { editCaseService, getCasesByUserService, getAllCasesService, getAllCasesAdminService, createCaseService, getPresignedUrlService, HostspotService, trendAnalysisService, ResolutionTime, monthlyReportService } from './service.js'
 import { fromCookie, verify as verifyJWT } from './extractJWT.js'
 
 const CORS_HEADERS = {
@@ -212,23 +212,6 @@ export const getMonthlyReport = async (event) => {
   } catch (error) {
     console.error('getMonthlyReport error:', error)
     return withCors({ statusCode: 500, body: JSON.stringify({ error: 'Failed to get monthly report', message: error.message }) })
-  }
-}
-
-// DELETE /cases/all
-export const deleteAllCases = async (event) => {
-  const auth = requireAuth(event)
-  if (!auth.ok) return withCors(auth.response)
-
-  const roleError = requireRole(auth.user, 'admin')
-  if (roleError) return withCors(roleError)
-
-  try {
-    const result = await deleteAllCasesService()
-    return withCors({ statusCode: 200, body: JSON.stringify(result) })
-  } catch (error) {
-    console.error('deleteAllCases error:', error)
-    return withCors({ statusCode: 500, body: JSON.stringify({ error: 'Failed to delete all cases', message: error.message }) })
   }
 }
 
