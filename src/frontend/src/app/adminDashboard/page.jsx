@@ -17,7 +17,7 @@ const FILTER_TO_STATUS = {
   'เสร็จสิ้น': 'FINISHED',
 }
 
-const RADIUS_M = 500
+const RADIUS_M = 500 // Hello
 
 function haversine(lat1, lon1, lat2, lon2) {
   const R = 6371000
@@ -108,7 +108,7 @@ export default function AdminDashboard() {
   // ── Fetch Cases (หลัง auth) ────────────────────────────────────────────────
   useEffect(() => {
     if (!auth) return
-    fetch(`${API}/cases?admin=true`)
+    fetch(`${API}/cases?admin=true`, { headers: { 'Content-Type': 'application/json', "Authorization": `Bearer ${localStorage.getItem("TU_Smart_Service JWT Token")}` } })
       .then((r) => r.json())
       .then((data) => {
         const items = Array.isArray(data) ? data : []
@@ -128,7 +128,7 @@ export default function AdminDashboard() {
     setSelectedAgency(null)
     setShowModal(true)
     setLoadingAgencies(true)
-    fetch(`${process.env.NEXT_PUBLIC_API_URL}/agencies`)
+    fetch(`${process.env.NEXT_PUBLIC_API_URL}/agencies`, { headers: { 'Content-Type': 'application/json', "Authorization": `Bearer ${localStorage.getItem("TU_Smart_Service JWT Token")}` } })
       .then(r => r.json())
       .then(data => {
         const active = Array.isArray(data.agencies) ? data.agencies.filter(a => a.Status === 'ACTIVE') : []
@@ -145,8 +145,8 @@ export default function AdminDashboard() {
       const caseIds = getRelatedCaseIds(selected)
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/cases/${selected.caseId}/assign`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', "Authorization": `Bearer ${localStorage.getItem("TU_Smart_Service JWT Token")}` },
-        body: JSON.stringify({ agencyId: selectedAgency.agencyId, caseIds }),
+        headers: {'Content-Type':'application/json',"Authorization":`Bearer ${localStorage.getItem("TU_Smart_Service JWT Token")}`},
+        body: JSON.stringify({agencyId: selectedAgency.agencyId , caseIds})
       })
       if (!res.ok) {
         const data = await res.json().catch(() => ({}))
