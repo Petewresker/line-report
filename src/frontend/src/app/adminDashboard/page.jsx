@@ -465,6 +465,7 @@ export default function AdminDashboard() {
                   </div>
 
                   {/* Action */}
+                  {/* need REJECT function for admin */}
                   <button onClick={openModal} style={{
                     width: '100%', padding: '0.75rem', borderRadius: '10px', border: 'none',
                     background: '#10B981', color: '#fff', fontSize: '0.95rem', fontWeight: '600',
