@@ -1,7 +1,7 @@
 import { randomUUID } from 'crypto'
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb'
 //ใช้คำสั่ง ScanCommand ของ DynamoDB เพื่อดึงข้อมูลทั้งหมดใน Table
-import { DynamoDBDocumentClient, ScanCommand, PutCommand, DeleteCommand } from '@aws-sdk/lib-dynamodb'
+import { DynamoDBDocumentClient, QueryCommand, ScanCommand, PutCommand, GetCommand, UpdateCommand } from '@aws-sdk/lib-dynamodb'
 import crypto from 'node:crypto'
 import { S3Client, PutObjectCommand ,GetObjectCommand } from '@aws-sdk/client-s3'
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
@@ -123,7 +123,68 @@ export const getPresignedUrlService = async (filename, contentType) => {
 }
 
 export const editCaseService = async (caseId, data) => {
+  // Verify case exists
+  const getResult = await client.send(new GetCommand({
+    TableName: process.env.TABLE_TABLE_NAME,
+    Key: {
+      PK: `CASE#${caseId}`,
+      SK: 'METADATA',
+    },
+  }))
 
+  if (!getResult.Item) {
+    throw new Error('Case not found')
+  }
+
+  // Build update expression dynamically
+  const updateExpressionParts = []
+  const expressionAttributeNames = {}
+  const expressionAttributeValues = {}
+
+  if (data.description !== undefined) {
+    updateExpressionParts.push('#desc = :description')
+    expressionAttributeNames['#desc'] = 'description'
+    expressionAttributeValues[':description'] = data.description
+  }
+
+  if (data.location) {
+    if (data.location.lat !== undefined) {
+      updateExpressionParts.push('lat = :lat')
+      expressionAttributeValues[':lat'] = data.location.lat
+    }
+    if (data.location.long !== undefined) {
+      updateExpressionParts.push('lon = :lon')
+      expressionAttributeValues[':lon'] = data.location.long
+    }
+  }
+
+  if (data.imageUrlBefore !== undefined) {
+    updateExpressionParts.push('imageUrlBefore = :imageUrlBefore')
+    expressionAttributeValues[':imageUrlBefore'] = data.imageUrlBefore
+  }
+
+  if (updateExpressionParts.length === 0) {
+    throw new Error('No fields to update')
+  }
+
+  //update timestamp
+  updateExpressionParts.push('updatedAt = :updatedAt')
+  expressionAttributeValues[':updatedAt'] = new Date().toISOString()
+
+  // Execute update
+  const updateResult = await client.send(new UpdateCommand({
+    TableName: process.env.TABLE_TABLE_NAME,
+    Key: {
+      PK: `CASE#${caseId}`,
+      SK: 'METADATA',
+    },
+    UpdateExpression: 'SET ' + updateExpressionParts.join(', '),
+    ...(Object.keys(expressionAttributeNames).length > 0 && { ExpressionAttributeNames: expressionAttributeNames }),
+    ExpressionAttributeValues: expressionAttributeValues,
+    ReturnValues: 'ALL_NEW',
+  }))
+
+  return updateResult.Attributes
 }
 
 export const deleteCasesByUserService = async (userId) => {
