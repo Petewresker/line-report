@@ -5,8 +5,6 @@ import { DynamoDBDocumentClient, QueryCommand, ScanCommand, PutCommand, GetComma
 import crypto from 'node:crypto'
 import { S3Client, PutObjectCommand ,GetObjectCommand } from '@aws-sdk/client-s3'
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
-import { mockData } from './mockData.js'
-
 // For DyamoDB Local testing
 const clientConfig = {}
 console.log('DYNAMODB_ENDPOINT=', process.env.DYNAMODB_ENDPOINT)
@@ -187,26 +185,6 @@ export const editCaseService = async (caseId, data) => {
   return updateResult.Attributes
 }
 
-export const deleteCasesByUserService = async (userId) => {
-  const result = await client.send(new ScanCommand({
-    TableName: process.env.TABLE_TABLE_NAME,
-    FilterExpression: 'userId = :userId',
-    ExpressionAttributeValues: { ':userId': userId },
-    ProjectionExpression: 'PK, SK',
-  }))
-
-  await Promise.all(
-    result.Items.map((item) =>
-      client.send(new DeleteCommand({
-        TableName: process.env.TABLE_TABLE_NAME,
-        Key: { PK: item.PK, SK: item.SK },
-      }))
-    )
-  )
-
-  return { deleted: result.Items.length }
-}
-
 export const deleteAllCasesService = async () => {
   let lastKey
   let deleted = 0
@@ -253,32 +231,6 @@ export const getCasesByUserService = async (userId) => {
 
 
 
-
-//Loop MockData Test
-export const postCaseService = async () => {
-  const results = []
-
-  for (const mock of mockData) {
-    try {
-      const item = await createCaseService({
-        title: mock.title,
-        description: mock.description,
-        userId: mock.userId,
-        lat: mock.lat,
-        lon: mock.lon,
-        imageUrlBefore: mock.imageUrlBefore,
-      })
-      results.push({ caseId: item.caseId, title: mock.title, status: 'success' })
-    } catch (error) {
-      results.push({ title: mock.title, status: 'failed', error: error.message })
-    }
-  }
-
-  return {
-    message: `Seeded ${results.filter((r) => r.status === 'success').length}/${mockData.length} cases`,
-    results,
-  }
-}
 
 export const createCaseService = async (caseInformation) => {
   const caseId = crypto.randomUUID()
@@ -427,18 +379,3 @@ export const ResolutionTime = async () =>{
   return Resolution;
 };
 
-// DELETE /cases/{caseId}
-export const deleteByCaseIdService = async (caseId) => {
-  await client.send(new DeleteCommand({
-    TableName: process.env.TABLE_TABLE_NAME,
-    Key: {
-      PK: `CASE#${caseId}`,
-      SK: 'METADATA',
-    },
-  }))
-
-  return {
-    message: 'Case deleted successfully',
-    caseId,
-  }
-}

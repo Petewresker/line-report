@@ -58,12 +58,6 @@ Resources:
                 type: aws_proxy
                 uri: !Sub arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${cases.Arn}/invocations
               responses: {}
-            delete:
-              x-amazon-apigateway-integration:
-                httpMethod: POST
-                type: aws_proxy
-                uri: !Sub arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${cases.Arn}/invocations
-              responses: {}
           /cases/{caseId}/edit:
             post:
               x-amazon-apigateway-integration:
@@ -223,21 +217,7 @@ Resources:
                 type: aws_proxy
                 uri: !Sub arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${cases.Arn}/invocations
               responses: {}
-          /cases/mockpost:
-            post:
-              x-amazon-apigateway-integration:
-                httpMethod: POST
-                type: aws_proxy
-                uri: !Sub arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${cases.Arn}/invocations
-              responses: {}
           /cases/all:
-            delete:
-              x-amazon-apigateway-integration:
-                httpMethod: POST
-                type: aws_proxy
-                uri: !Sub arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${cases.Arn}/invocations
-              responses: {}
-          /cases/{caseId}:
             delete:
               x-amazon-apigateway-integration:
                 httpMethod: POST
@@ -464,28 +444,10 @@ Resources:
             Path: /cases/monthly
             Method: GET
             RestApiId: !Ref Api
-        ApiPOSTcasesMockpost:
-          Type: Api
-          Properties:
-            Path: /cases/mockpost
-            Method: POST
-            RestApiId: !Ref Api
-        ApiDELETEcases:
-          Type: Api
-          Properties:
-            Path: /cases
-            Method: DELETE
-            RestApiId: !Ref Api
         ApiDELETEcasesAll:
           Type: Api
           Properties:
             Path: /cases/all
-            Method: DELETE
-            RestApiId: !Ref Api
-        ApiDELETEByCaseId:
-          Type: Api
-          Properties:
-            Path: /cases/{caseId}
             Method: DELETE
             RestApiId: !Ref Api
       Policies:

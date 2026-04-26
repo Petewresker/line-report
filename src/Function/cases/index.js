@@ -1,5 +1,5 @@
 // cases/index.js
-import { getCasesByUser, editCaseHandler, createCase, postCaseByUser, getPresignedUrl, gethotspot, getTrends, getResolution, deleteCase, getMonthlyReport, seedMockCases, deleteAllCases, deleteByCaseId } from './handler.js'
+import { getCasesByUser, editCaseHandler, createCase, postCaseByUser, getPresignedUrl, gethotspot, getTrends, getResolution, getMonthlyReport, deleteAllCases } from './handler.js'
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
@@ -18,9 +18,7 @@ export const handler = async (event) => {
     if (httpMethod === 'GET' && resource === '/cases')       return getCasesByUser(event)
     if (httpMethod === 'POST' && resource === '/cases/{caseId}/edit') return editCaseHandler(event)
     if (httpMethod === 'POST' && resource === '/cases') return createCase(event)
-    if (httpMethod === 'DELETE' && resource === '/cases') return deleteCase(event)
-    if (httpMethod === 'DELETE' && resource === '/cases/{caseId}') return deleteByCaseId(event)
-      
+
     //สําหรับการวิเคราะห์ข้อมูล
     if (httpMethod === 'GET' && resource === '/cases/hotspots') return gethotspot(event)
     if (httpMethod === 'GET' && resource === '/cases/trends') return getTrends(event)
@@ -29,7 +27,6 @@ export const handler = async (event) => {
 
     //วิเคราะห์ข้อมูล
     if (httpMethod === 'DELETE' && resource === '/cases/all') return deleteAllCases(event)
-    if (httpMethod === 'POST' && resource === '/cases/mockpost') return seedMockCases(event)
 
     return {
       statusCode: 404,
