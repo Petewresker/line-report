@@ -137,37 +137,50 @@ export async function deleteAllAgenciesService() {
 
 // ลบ Agency (Reject)
 export async function deleteAgencyService(agencyId) {
-  const result = await dynamoDB.send(
-    new UpdateCommand({
-      TableName: TABLE_NAME,
-      Key: {
-        PK: `AGENCY#${agencyId}`,
-        SK: `METADATA#${agencyId}`
-      },
-      UpdateExpression: "SET #s = :status",
-      ExpressionAttributeNames:{ "#s": "Status"},
-      ExpressionAttributeValues:{ ":status":"REJECTED"},
-      ReturnValues: "ALL_NEW"
-    })
-  );
-  return result.Attributes; 
+  try {
+    const result = await dynamoDB.send(
+      new UpdateCommand({
+        TableName: TABLE_NAME,
+        Key: {
+          PK: `AGENCY#${agencyId}`,
+          SK: `METADATA#${agencyId}`
+        },
+        UpdateExpression: "SET #s = :status",
+        ConditionExpression: "attribute_exists(PK) AND attribute_exists(SK)",
+        ExpressionAttributeNames:{ "#s": "Status"},
+        ExpressionAttributeValues:{ ":status":"REJECTED"},
+        ReturnValues: "ALL_NEW"
+      })
+    );
+    return result.Attributes;
+  } catch (err) {
+    if (err.name === "ConditionalCheckFailedException") return null;
+    throw err;
+  }
 }
 
 // อนุมัติ Agency เปลี่ยน Status เป็น Active และ update User role + agencyId
 export async function approveAgencyService(agencyId) {
-  const agencyResult = await dynamoDB.send(
-    new UpdateCommand({
-      TableName: TABLE_NAME,
-      Key: {
-        PK: `AGENCY#${agencyId}`,
-        SK: `METADATA#${agencyId}`
-      },
-      UpdateExpression: "SET #s = :active",
-      ExpressionAttributeNames: { "#s": "Status" },
-      ExpressionAttributeValues: { ":active": "ACTIVE" },
-      ReturnValues: "ALL_NEW"
-    })
-  );
+  let agencyResult;
+  try {
+    agencyResult = await dynamoDB.send(
+      new UpdateCommand({
+        TableName: TABLE_NAME,
+        Key: {
+          PK: `AGENCY#${agencyId}`,
+          SK: `METADATA#${agencyId}`
+        },
+        UpdateExpression: "SET #s = :active",
+        ConditionExpression: "attribute_exists(PK) AND attribute_exists(SK)",
+        ExpressionAttributeNames: { "#s": "Status" },
+        ExpressionAttributeValues: { ":active": "ACTIVE" },
+        ReturnValues: "ALL_NEW"
+      })
+    );
+  } catch (err) {
+    if (err.name === "ConditionalCheckFailedException") return null;
+    throw err;
+  }
 
   const agency = agencyResult.Attributes;
 
