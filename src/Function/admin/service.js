@@ -153,3 +153,59 @@ export const assignReportService = async (caseId, agencyId, caseIds = []) => {
     },
   }
 }
+
+// อัปเดต case เดียว → REJECTED, คืน null ถ้า skip (ไม่ใช่ PENDING)
+async function rejectOneCase(tableName, caseId, now) {
+  try {
+    const result = await client.send(new UpdateCommand({
+      TableName: tableName,
+      Key: caseKey(caseId),
+      UpdateExpression: 'SET #st = :rejected, RejectedAt = :now',
+      ConditionExpression: '#st = :pending',
+      ExpressionAttributeNames: { '#st': 'status' },
+      ExpressionAttributeValues: {
+        ':rejected': 'REJECTED',
+        ':pending': 'PENDING',
+        ':now': now,
+      },
+      ReturnValues: 'ALL_NEW',
+    }))
+    return result.Attributes
+  } catch (err) {
+    if (err.name === 'ConditionalCheckFailedException') return null
+    throw err
+  }
+}
+
+export const rejectCaseService = async (caseId, caseIds = []) => {
+  const tableName = process.env.TABLE_TABLE_NAME
+  if (!tableName) {
+    return { statusCode: 500, data: { success: false, message: 'TABLE_TABLE_NAME is not configured' } }
+  }
+
+  const allIds = caseIds.length > 0 ? caseIds : [caseId]
+
+  const primaryResult = await client.send(new GetCommand({ TableName: tableName, Key: caseKey(caseId) }))
+  if (!primaryResult.Item) {
+    return { statusCode: 404, data: { success: false, message: 'Case not found' } }
+  }
+
+  const now = new Date().toISOString()
+  const updateResults = await Promise.all(
+    allIds.map(id => rejectOneCase(tableName, id, now))
+  )
+  const rejected = updateResults.filter(Boolean)
+
+  if (rejected.length === 0) {
+    return { statusCode: 409, data: { success: false, message: 'No PENDING cases to reject' } }
+  }
+
+  return {
+    statusCode: 200,
+    data: {
+      success: true,
+      message: `Rejected ${rejected.length} case(s)`,
+      rejected: rejected.map(c => c.caseId),
+    },
+  }
+}

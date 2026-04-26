@@ -5,11 +5,13 @@ const LIFF_URL = process.env.LIFF_URL;
 const AGENCY_WEB_LIFF_URL = process.env.AGENCY_WEB_LIFF_URL ?? "https://example.com";
 const AGENCY_REGISTER_LIFF_URL = process.env.AGENCY_REGISTER_LIFF_URL ?? "https://example.com";
 
+
 const STATUS_LABEL = {
   PENDING:     { text: "สถานะ : รอดำเนินการ",      color: "#F29A4E" },
   FORWARD:     { text: "สถานะ : กำลังส่งมอบ",       color: "#9B59B6" },
   IN_PROGRESS: { text: "สถานะ : กำลังดำเนินการ",    color: "#008000" },
   FINISHED:    { text: "สถานะ : แก้ไขสำเร็จแล้ว",   color: "#10B981" },
+  REJECTED:    { text: "สถานะ : ปฏิเสธ",            color: "#EF4444" },
 };
 
 export async function handleSendReport(replyToken) {

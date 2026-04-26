@@ -52,6 +52,7 @@ const STATUS_MAP = {
   FORWARD: { bg: '#EDE9FE', text: '#6D28D9', label: 'กำลังส่งมอบ' },
   IN_PROGRESS: { bg: '#DBEAFE', text: '#1E40AF', label: 'กำลังดำเนินการ' },
   FINISHED: { bg: '#D1FAE5', text: '#065F46', label: 'เสร็จสิ้น' },
+  REJECTED: { bg: '#FEE2E2', text: '#991B1B', label: 'ปฏิเสธ' },
 }
 
 export default function AdminDashboard() {
@@ -70,6 +71,8 @@ export default function AdminDashboard() {
   const [loadingAgencies, setLoadingAgencies] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [groupCursors, setGroupCursors] = useState({})
+  const [rejecting, setRejecting] = useState(false)
+  const [showRejectModal, setShowRejectModal] = useState(false)
 
   // ── LIFF Init + Admin Check ────────────────────────────────────────────────
   useEffect(() => {
@@ -159,6 +162,35 @@ export default function AdminDashboard() {
       console.error(err)
     } finally {
       setSubmitting(false)
+    }
+  }
+
+  const openRejectModal = () => {
+    setShowRejectModal(true)
+  }
+
+  const handleReject = async () => {
+    if (!selected) return
+    setRejecting(true)
+    try {
+      const caseIds = getRelatedCaseIds(selected)
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/cases/${selected.caseId}/reject`, {
+        method: 'POST',
+        headers: {'Content-Type':'application/json',"Authorization":`Bearer ${localStorage.getItem("TU_Smart_Service JWT Token")}`},
+        body: JSON.stringify({ caseIds })
+      })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        throw new Error(data.message || `Server error: ${res.status}`)
+      }
+      setCases(prev => prev.map(c => caseIds.includes(c.caseId) ? { ...c, status: 'REJECTED' } : c))
+      setSelected(prev => prev ? { ...prev, status: 'REJECTED' } : prev)
+      setShowRejectModal(false)
+    } catch (err) {
+      console.error(err)
+      alert('เกิดข้อผิดพลาดในการปฏิเสธงาน')
+    } finally {
+      setRejecting(false)
     }
   }
 
@@ -465,16 +497,32 @@ export default function AdminDashboard() {
                   </div>
 
                   {/* Action */}
-                  <button onClick={openModal} style={{
-                    width: '100%', padding: '0.75rem', borderRadius: '10px', border: 'none',
-                    background: '#10B981', color: '#fff', fontSize: '0.95rem', fontWeight: '600',
-                    cursor: 'pointer', transition: 'background 0.2s',
-                  }}
-                    onMouseEnter={(e) => e.currentTarget.style.background = '#059669'}
-                    onMouseLeave={(e) => e.currentTarget.style.background = '#10B981'}
-                  >
-                    ส่งข้อมูล ({selected ? getRelatedCaseIds(selected).length : 0} เคส)
-                  </button>
+                  <div style={{ display: 'flex', gap: '0.75rem' }}>
+                    <button onClick={openRejectModal} disabled={selected?.status !== 'PENDING'} style={{
+                      flex: 1, padding: '0.75rem', borderRadius: '10px', border: 'none',
+                      background: selected?.status === 'PENDING' ? '#EF4444' : '#d1d5db',
+                      color: '#fff', fontSize: '0.95rem', fontWeight: '600',
+                      cursor: selected?.status === 'PENDING' ? 'pointer' : 'not-allowed',
+                      transition: 'background 0.2s',
+                    }}
+                      onMouseEnter={(e) => { if (selected?.status === 'PENDING') e.currentTarget.style.background = '#DC2626' }}
+                      onMouseLeave={(e) => { if (selected?.status === 'PENDING') e.currentTarget.style.background = '#EF4444' }}
+                    >
+                      ปฏิเสธ
+                    </button>
+                    <button onClick={openModal} disabled={selected?.status !== 'PENDING'} style={{
+                      flex: 2, padding: '0.75rem', borderRadius: '10px', border: 'none',
+                      background: selected?.status === 'PENDING' ? '#10B981' : '#d1d5db',
+                      color: '#fff', fontSize: '0.95rem', fontWeight: '600',
+                      cursor: selected?.status === 'PENDING' ? 'pointer' : 'not-allowed',
+                      transition: 'background 0.2s',
+                    }}
+                      onMouseEnter={(e) => { if (selected?.status === 'PENDING') e.currentTarget.style.background = '#059669' }}
+                      onMouseLeave={(e) => { if (selected?.status === 'PENDING') e.currentTarget.style.background = '#10B981' }}
+                    >
+                      ส่งข้อมูล ({selected ? getRelatedCaseIds(selected).length : 0} เคส)
+                    </button>
+                  </div>
                 </>
               ) : (
                 <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#bbb', fontSize: '0.9rem' }}>
@@ -550,6 +598,48 @@ export default function AdminDashboard() {
                 cursor: selectedAgency && !submitting ? 'pointer' : 'not-allowed',
               }}>
                 {submitting ? 'กำลังส่ง...' : 'ยืนยัน'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showRejectModal && (
+        <div style={{
+          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000,
+        }} onClick={(e) => { if (e.target === e.currentTarget) setShowRejectModal(false) }}>
+          <div style={{
+            background: '#fff', borderRadius: '16px', padding: '1.75rem',
+            width: '420px', maxWidth: '90vw', boxShadow: '0 8px 32px rgba(0,0,0,0.18)',
+          }}>
+            <div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
+              <div style={{
+                width: '64px', height: '64px', borderRadius: '50%', background: '#FEE2E2',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1rem',
+              }}>
+                <AlertCircle size={32} color="#EF4444" />
+              </div>
+              <h2 style={{ fontSize: '1.1rem', fontWeight: '700', color: '#111', marginBottom: '0.5rem' }}>ยืนยันการปฏิเสธงาน</h2>
+              <p style={{ fontSize: '0.875rem', color: '#666', lineHeight: '1.6' }}>
+                คุณต้องการปฏิเสธ <b style={{ color: '#111' }}>{selected ? getRelatedCaseIds(selected).length : 0} เคส</b><br />
+                "{selected?.title}" ใช่หรือไม่?
+              </p>
+            </div>
+
+            <div style={{ display: 'flex', gap: '0.75rem' }}>
+              <button onClick={() => setShowRejectModal(false)} style={{
+                flex: 1, padding: '0.75rem', borderRadius: '10px',
+                border: '1px solid #e5e5e5', background: '#fff',
+                fontSize: '0.9rem', fontWeight: '500', cursor: 'pointer', color: '#555',
+              }}>ยกเลิก</button>
+              <button onClick={handleReject} disabled={rejecting} style={{
+                flex: 1, padding: '0.75rem', borderRadius: '10px', border: 'none',
+                background: rejecting ? '#d1d5db' : '#EF4444',
+                color: '#fff', fontSize: '0.9rem', fontWeight: '600',
+                cursor: rejecting ? 'not-allowed' : 'pointer',
+              }}>
+                {rejecting ? 'กำลังปฏิเสธ...' : 'ยืนยันปฏิเสธ'}
               </button>
             </div>
           </div>

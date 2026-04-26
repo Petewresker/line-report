@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from 'react'
 
-export default function HeatMap({ points = [] }) {
+export default function HeatMap({ points = [], flyTo = null }) {
   const mapRef = useRef(null)
   const instanceRef = useRef(null)
   const heatLayerRef = useRef(null)
@@ -63,6 +63,12 @@ export default function HeatMap({ points = [] }) {
     const heatPoints = points.map((p) => [p.lat, p.lon, p.count / maxCount])
     heatLayerRef.current.setLatLngs(heatPoints)
   }, [points])
+
+  // บินไปยังตำแหน่งที่ค้นหา
+  useEffect(() => {
+    if (!instanceRef.current || !flyTo) return
+    instanceRef.current.flyTo([flyTo.lat, flyTo.lon], flyTo.zoom ?? 16, { duration: 1.2 })
+  }, [flyTo])
 
   return <div ref={mapRef} style={{ width: '100%', height: '100%' }} />
 }

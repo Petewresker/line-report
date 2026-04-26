@@ -1,4 +1,4 @@
-import { assignReportService, createAdminService, deleteAdminService, getAdminByUserIdService } from "./service.js";
+import { assignReportService, createAdminService, deleteAdminService, getAdminByUserIdService, rejectCaseService } from "./service.js";
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -103,6 +103,27 @@ export const assignReport = async (event) => {
 
   } catch (error) {
     console.error("assignReport error:", error);
+    return internalError();
+  }
+};
+
+// POST /admin/cases/{caseId}/reject
+export const rejectCase = async (event) => {
+  try {
+    const { caseId } = event;
+    const body = typeof event.body === 'string' ? JSON.parse(event.body || '{}') : (event.body || {})
+    const caseIds = Array.isArray(body.caseIds) ? body.caseIds : []
+
+    const result = await rejectCaseService(caseId, caseIds);
+
+    return {
+      statusCode: result.statusCode || 200,
+      headers: CORS_HEADERS,
+      body: JSON.stringify(result.data)
+    };
+
+  } catch (error) {
+    console.error("rejectCase error:", error);
     return internalError();
   }
 };
