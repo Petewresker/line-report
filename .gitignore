@@ -145,3 +145,5 @@ node_modules/
 src/frontend/node_modules/
 src/Function/node_modules/
 >>>>>>> master
+.vercel
+.env*.local
