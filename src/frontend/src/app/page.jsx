@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import liff from "@line/liff";
+import { authenticate, verify } from "./utils/authenkit";
 
 export default function Home() {
   const [profile, setProfile] = useState(null);
@@ -9,17 +10,33 @@ export default function Home() {
   const [liffError, setLiffError] = useState(null);
 
   const [photoPreview, setPhotoPreview] = useState(null);
-  const [photoBase64, setPhotoBase64] = useState(null);
+  const [photoFile, setPhotoFile] = useState(null);
   const [topic, setTopic] = useState("");
   const [detail, setDetail] = useState("");
   const inputRef = useRef(null);
   const [locState, setLocState] = useState("idle");
   const [coords, setCoords] = useState(null);
+  const [submitState, setSubmitState] = useState("idle"); // idle | loading | success | error
+  const [errors, setErrors] = useState({});
 
   // ── LIFF Init & Login ──────────────────────────────────────────────────────
+
   useEffect(() => {
     const initLiff = async () => {
       try {
+        const devUserId = process.env.NEXT_PUBLIC_DEV_USER_ID;
+        const isLocalhost = typeof window !== "undefined" && window.location.hostname === "localhost";
+
+        if (isLocalhost && devUserId) {
+          setProfile({
+            userId: devUserId,
+            displayName: "Dev User",
+            pictureUrl: "https://placehold.co/40",
+          });
+          setLiffReady(true);
+          return;
+        }
+
         await liff.init({ liffId: process.env.NEXT_PUBLIC_LIFF_ID });
 
         if (!liff.isLoggedIn()) {
@@ -27,9 +44,24 @@ export default function Home() {
           return;
         }
 
-        const userProfile = await liff.getProfile();
-        setProfile(userProfile);
-        setLiffReady(true);
+        if (!localStorage.getItem("TU_Smart_Service JWT Token")) {
+          const userProfile = await liff.getProfile();
+          setProfile(userProfile);
+          setLiffReady(true);
+          await authenticate({ idToken: liff.getIDToken() });
+        } else {
+          const verifyData = await verify();
+
+          if (verifyData && ["user", "admin", "agency"].includes(verifyData.user.role)) {
+            const userProfile = await liff.getProfile();
+            setProfile(userProfile);
+            setLiffReady(true);
+          } else {
+            localStorage.removeItem("TU_Smart_Service JWT Token");
+            liff.login();
+          }
+        }
+
       } catch (err) {
         console.error("LIFF Initialization failed", err);
         setLiffError(err?.message ?? String(err));
@@ -40,25 +72,75 @@ export default function Home() {
   }, []);
 
   // ── Handlers ───────────────────────────────────────────────────────────────
-  const handleSubmit = () => {
-    const payload = {
-      topic,
-      detail,
-      photo: photoBase64 ?? null,
-      location: coords ? { lat: coords.lat, lng: coords.lng } : null,
-      lineUserId: profile?.userId ?? null,
-    };
-    console.log("Submit payload:", JSON.stringify(payload, null, 2));
-    // TODO: await fetch("/api/incident", { method: "POST", body: JSON.stringify(payload) })
+  const handleSubmit = async () => {
+    if (submitState === "loading" || submitState === "success") return;
+
+    const newErrors = {};
+    if (!topic) newErrors.topic = "Please select topic";
+    if (!detail.trim()) newErrors.detail = "Please fill descriptions";
+    if (!photoFile) newErrors.photo = "Please take a photo";
+    if (!coords) newErrors.location = "Please shared your location";
+
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
+      return;
+    }
+    setErrors({});
+    setSubmitState("loading");
+    try {
+      let imageKey = null;
+
+      if (photoFile) {
+        // 1. ขอ presigned URL จาก backend
+        const presignedRes = await fetch(
+          `${process.env.NEXT_PUBLIC_API_URL}/cases/presigned-url?filename=${encodeURIComponent(photoFile.name)}&contentType=${encodeURIComponent(photoFile.type)}`,
+          { headers: { 'Content-Type': 'application/json', "Authorization": `Bearer ${localStorage.getItem("TU_Smart_Service JWT Token")}` } },
+        );
+
+        const { uploadUrl, key } = await presignedRes.json();
+
+        // 2. PUT รูปตรงไป S3
+        const s3Res = await fetch(uploadUrl, {
+          method: "PUT",
+          body: photoFile,
+          headers: { "Content-Type": photoFile.type },
+        });
+
+        console.log("S3 PUT status:", s3Res.status);
+        imageKey = key;
+      }
+
+      // 3. POST ข้อมูล case ไป backend
+      const payload = {
+        title: topic,
+        description: detail,
+        userId: profile?.userId ?? null,
+        lat: coords?.lat ?? null,
+        lon: coords?.lng ?? null,
+        imageUrlBefore: imageKey,
+      };
+
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/cases`, {
+        method: "POST",
+        headers: { 'Content-Type': 'application/json', "Authorization": `Bearer ${localStorage.getItem("TU_Smart_Service JWT Token")}` },
+        body: JSON.stringify(payload),
+      });
+
+      if (!res.ok) throw new Error(`Server error: ${res.status}`);
+      const result = await res.json();
+      console.log("Case created:", result);
+      setSubmitState("success");
+    } catch (err) {
+      console.error("Submit failed:", err);
+      setSubmitState("idle");
+    }
   };
 
   const handleCapture = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
     setPhotoPreview(URL.createObjectURL(file));
-    const reader = new FileReader();
-    reader.onload = () => setPhotoBase64(reader.result);
-    reader.readAsDataURL(file);
+    setPhotoFile(file);
     e.target.value = "";
   };
 
@@ -98,6 +180,20 @@ export default function Home() {
     <div className="min-h-screen bg-[#FFE2C2] px-4 py-4 flex flex-col">
       <div className="bg-white rounded-2xl shadow-sm p-4 flex-1">
 
+        {/* Debug Refresh Button */}
+        <div className="flex justify-end mb-2">
+          <button
+            onClick={() => {
+              localStorage.clear();
+              sessionStorage.clear();
+              window.location.reload();
+            }}
+            className="text-xs text-gray-400 border border-gray-300 rounded px-2 py-1 hover:bg-gray-100 active:scale-95"
+          >
+            Debug Reload
+          </button>
+        </div>
+
         {/* Profile Header */}
         <div className="flex items-center gap-3 border-b border-gray-200 pb-3 mb-4">
           <img
@@ -116,12 +212,19 @@ export default function Home() {
         {/* Topic */}
         <div className="relative">
           <select
-            className="w-full px-3 py-2 rounded-lg text-gray-400 text-sm appearance-none"
+            className="w-full px-3 py-2 rounded-lg text-black text-sm appearance-none"
             style={{ backgroundColor: "#F5F5F5", border: "1px solid #5D5A5A" }}
             value={topic}
             onChange={(e) => setTopic(e.target.value)}
           >
             <option value="" disabled>-- Select Topic --</option>
+            <option value="Road & Pavement Damage">Road & Pavement Damage</option>
+            <option value="Flooding & Drainage">Flooding & Drainage</option>
+            <option value="Streetlight Malfunction">Streetlight Malfunction</option>
+            <option value="Illegal Dumping & Waste">Illegal Dumping & Waste</option>
+            <option value="Public Safety Hazard">Public Safety Hazard</option>
+            <option value="Public Safety Hazard">Autonomose</option>
+
           </select>
           <div className="pointer-events-none absolute inset-y-0 right-3 flex items-center">
             <svg className="w-3 h-3 text-gray-500" viewBox="0 0 10 6" fill="currentColor">
@@ -129,15 +232,17 @@ export default function Home() {
             </svg>
           </div>
         </div>
+        {errors.topic && <p className="text-red-500 text-xs mt-1">{errors.topic}</p>}
 
         {/* Detail */}
         <textarea
-          className="w-full mt-3 px-3 py-2 rounded-lg text-gray-400 text-sm resize-none h-40"
+          className="w-full mt-3 px-3 py-2 rounded-lg text-black text-sm resize-none h-40"
           style={{ backgroundColor: "#F5F5F5", border: "1px solid #5D5A5A" }}
           placeholder="Type detail..."
           value={detail}
           onChange={(e) => setDetail(e.target.value)}
         />
+        {errors.detail && <p className="text-red-500 text-xs mt-1">{errors.detail}</p>}
 
         {/* Photo */}
         <div className="border-b border-gray-200 mt-3 pb-3 mb-4">
@@ -160,7 +265,7 @@ export default function Home() {
               onClick={() => {
                 URL.revokeObjectURL(photoPreview);
                 setPhotoPreview(null);
-                setPhotoBase64(null);
+                setPhotoFile(null);
               }}
               className="absolute top-2 right-2 bg-black bg-opacity-50 rounded-full p-1"
             >
@@ -194,6 +299,7 @@ export default function Home() {
             </div>
           </div>
         )}
+        {errors.photo && <p className="text-red-500 text-xs mt-1">{errors.photo}</p>}
 
         {/* Location */}
         <div className="border-b border-gray-200 mt-3 pb-3 mb-4">
@@ -236,18 +342,54 @@ export default function Home() {
             <span className="text-gray-400 text-xs">Lat: {coords.lat.toFixed(6)}, Long: {coords.lng.toFixed(6)}</span>
           </div>
         )}
+        {errors.location && <p className="text-red-500 text-xs mt-1">{errors.location}</p>}
 
         {/* Submit */}
         <button
-          className="w-full mt-4 py-3 rounded-xl text-white font-semibold text-sm"
-          style={{ backgroundColor: "#F29A4E" }}
+          className={`w-full mt-4 py-3 rounded-xl text-white font-semibold text-sm flex items-center justify-center gap-2 transition-all duration-300 cursor-pointer${submitState === "success"
+            ? "bg-green-500 scale-[1.02]"
+            : submitState === "loading"
+              ? "opacity-70 cursor-not-allowed"
+              : "hover:brightness-110 active:scale-95"
+            }`}
+          style={submitState !== "success" ? { backgroundColor: "#F29A4E" } : {}}
           onClick={handleSubmit}
+          disabled={submitState === "loading" || submitState === "success"}
         >
-          Submit Confirmed
+          {submitState === "loading" && (
+            <svg className="w-4 h-4 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+            </svg>
+          )}
+          {submitState === "success" && (
+            <svg
+              className="w-5 h-5 animate-[checkmark_0.4s_ease-out_forwards]"
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="3"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              style={{ strokeDasharray: 30, strokeDashoffset: 0, animation: "draw 0.4s ease-out forwards" }}
+            >
+              <polyline points="20 6 9 17 4 12" />
+            </svg>
+          )}
+          {submitState === "success" ? "รับเรื่องแล้ว!" : submitState === "loading" ? "กำลังส่ง..." : "Submit Confirmed"}
         </button>
+
+        <style>{`
+          @keyframes draw {
+            from { stroke-dashoffset: 30; }
+            to   { stroke-dashoffset: 0; }
+          }
+        `}</style>
 
         <img src="capibara_san.png" alt="capibara" />
       </div>
     </div>
   );
 }
+
