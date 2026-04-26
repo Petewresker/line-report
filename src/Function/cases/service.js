@@ -1,7 +1,7 @@
 import { randomUUID } from 'crypto'
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb'
 //ใช้คำสั่ง ScanCommand ของ DynamoDB เพื่อดึงข้อมูลทั้งหมดใน Table
-import { DynamoDBDocumentClient, QueryCommand, ScanCommand, PutCommand, GetCommand, UpdateCommand, DeleteCommand } from '@aws-sdk/lib-dynamodb'
+import { DynamoDBDocumentClient, QueryCommand, ScanCommand, PutCommand, GetCommand, UpdateCommand } from '@aws-sdk/lib-dynamodb'
 import crypto from 'node:crypto'
 import { S3Client, PutObjectCommand ,GetObjectCommand } from '@aws-sdk/client-s3'
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
@@ -353,33 +353,4 @@ export const ResolutionTime = async () =>{
 
   return Resolution;
 };
-
-export const deleteAllCasesService = async () => {
-  let lastKey
-  let deletedCount = 0
-
-  do {
-    const result = await client.send(new ScanCommand({
-      TableName: process.env.TABLE_TABLE_NAME,
-      FilterExpression: 'begins_with(PK, :prefix)',
-      ExpressionAttributeValues: { ':prefix': 'CASE#' },
-      ProjectionExpression: 'PK, SK',
-      ExclusiveStartKey: lastKey,
-    }))
-
-    await Promise.all(
-      result.Items.map((item) =>
-        client.send(new DeleteCommand({
-          TableName: process.env.TABLE_TABLE_NAME,
-          Key: { PK: item.PK, SK: item.SK },
-        }))
-      )
-    )
-
-    deletedCount += result.Items.length
-    lastKey = result.LastEvaluatedKey
-  } while (lastKey)
-
-  return { deletedCount }
-}
 

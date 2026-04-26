@@ -1,5 +1,5 @@
 // cases/index.js
-import { getCasesByUser, editCaseHandler, createCase, postCaseByUser, getPresignedUrl, gethotspot, getTrends, getResolution, getMonthlyReport, deleteAllCases } from './handler.js'
+import { getCasesByUser, editCaseHandler, createCase, postCaseByUser, getPresignedUrl, gethotspot, getTrends, getResolution, getMonthlyReport } from './handler.js'
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
@@ -18,12 +18,12 @@ export const handler = async (event) => {
     if (httpMethod === 'GET' && resource === '/cases')       return getCasesByUser(event)
     if (httpMethod === 'POST' && resource === '/cases/{caseId}/edit') return editCaseHandler(event)
     if (httpMethod === 'POST' && resource === '/cases') return createCase(event)
+
     //สําหรับการวิเคราะห์ข้อมูล
     if (httpMethod === 'GET' && resource === '/cases/hotspots') return gethotspot(event)
     if (httpMethod === 'GET' && resource === '/cases/trends') return getTrends(event)
     if (httpMethod === 'GET' && resource === '/cases/resolution') return getResolution(event)
     if (httpMethod === 'GET' && resource === '/cases/monthly') return getMonthlyReport(event)
-    if (httpMethod === 'DELETE' && resource === '/cases/all') return deleteAllCases(event)
 
     return {
       statusCode: 404,

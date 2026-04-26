@@ -58,12 +58,6 @@ Resources:
                 type: aws_proxy
                 uri: !Sub arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${cases.Arn}/invocations
               responses: {}
-            delete:
-              x-amazon-apigateway-integration:
-                httpMethod: POST
-                type: aws_proxy
-                uri: !Sub arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${cases.Arn}/invocations
-              responses: {}
           /cases/{caseId}/edit:
             post:
               x-amazon-apigateway-integration:
@@ -218,13 +212,6 @@ Resources:
               responses: {}
           /cases/monthly:
             get:
-              x-amazon-apigateway-integration:
-                httpMethod: POST
-                type: aws_proxy
-                uri: !Sub arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${cases.Arn}/invocations
-              responses: {}
-          /cases/all:
-            delete:
               x-amazon-apigateway-integration:
                 httpMethod: POST
                 type: aws_proxy
@@ -449,12 +436,6 @@ Resources:
           Properties:
             Path: /cases/monthly
             Method: GET
-            RestApiId: !Ref Api
-        ApiDELETEcasesAll:
-          Type: Api
-          Properties:
-            Path: /cases/all
-            Method: DELETE
             RestApiId: !Ref Api
       Policies:
         - Statement:
