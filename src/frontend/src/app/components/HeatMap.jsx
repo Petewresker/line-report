@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from 'react'
 
-export default function HeatMap({ points = [] }) {
+export default function HeatMap({ points = [], searchTarget = '' }) {
   const mapRef = useRef(null)
   const instanceRef = useRef(null)
   const heatLayerRef = useRef(null)
