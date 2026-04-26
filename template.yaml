@@ -381,6 +381,12 @@ Resources:
             Path: /admin/cases/{caseId}/agencies/{agencyId}
             Method: POST
             RestApiId: !Ref Api
+        ApiPOSTadminCasesCaseIdReject:
+          Type: Api
+          Properties:
+            Path: /admin/cases/{caseId}/reject
+            Method: POST
+            RestApiId: !Ref Api
       Policies:
         - Statement:
             - Effect: Allow

@@ -114,7 +114,7 @@ export default function AdminDashboard() {
     fetch(`${API}/cases?admin=true`, { headers: { 'Content-Type': 'application/json', "Authorization": `Bearer ${localStorage.getItem("TU_Smart_Service JWT Token")}` } })
       .then((r) => r.json())
       .then((data) => {
-        const items = Array.isArray(data) ? data : []
+        const items = Array.isArray(data) ? data.filter(c => c.status !== 'REJECTED') : []
         setCases(items)
         if (items.length > 0) setSelected(items[0])
       })
@@ -183,8 +183,8 @@ export default function AdminDashboard() {
         const data = await res.json().catch(() => ({}))
         throw new Error(data.message || `Server error: ${res.status}`)
       }
-      setCases(prev => prev.map(c => caseIds.includes(c.caseId) ? { ...c, status: 'REJECTED' } : c))
-      setSelected(prev => prev ? { ...prev, status: 'REJECTED' } : prev)
+      setCases(prev => prev.filter(c => !caseIds.includes(c.caseId)))
+      setSelected(prev => caseIds.includes(prev?.caseId) ? null : prev)
       setShowRejectModal(false)
     } catch (err) {
       console.error(err)
@@ -202,6 +202,7 @@ export default function AdminDashboard() {
   ]
 
   const filtered = useMemo(() => cases.filter((c) => {
+    if (c.status === 'REJECTED') return false
     const statusFilter = FILTER_TO_STATUS[activeFilter]
     const matchStatus = !statusFilter || c.status === statusFilter
     const matchSearch = c.title?.includes(searchQuery) || c.caseId?.includes(searchQuery)
