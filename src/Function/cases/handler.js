@@ -1,5 +1,5 @@
 // handler.js - validate แล้วเรียก service
-import { editCaseService, getCasesByUserService, getAllCasesService, getAllCasesAdminService, createCaseService, postCaseService, getPresignedUrlService, HostspotService, trendAnalysisService, ResolutionTime, deleteCasesByUserService, monthlyReportService, deleteAllCasesService, deleteByCaseIdService } from './service.js'
+import { editCaseService, getCasesByUserService, getAllCasesService, getAllCasesAdminService, createCaseService, getPresignedUrlService, HostspotService, trendAnalysisService, ResolutionTime, monthlyReportService, deleteAllCasesService } from './service.js'
 import { fromCookie, verify as verifyJWT } from './extractJWT.js'
 
 const CORS_HEADERS = {
@@ -147,6 +147,23 @@ export const createCase = async (event) => {
   }
 }
 
+// DELETE /cases/all
+export const deleteAllCases = async (event) => {
+  const auth = requireAuth(event)
+  if (!auth.ok) return withCors(auth.response)
+
+  const roleError = requireRole(auth.user, 'admin')
+  if (roleError) return withCors(roleError)
+
+  try {
+    const result = await deleteAllCasesService()
+    return withCors({ statusCode: 200, body: JSON.stringify(result) })
+  } catch (error) {
+    console.error('deleteAllCases error:', error)
+    return withCors({ statusCode: 500, body: JSON.stringify({ error: 'Failed to delete all cases', message: error.message }) })
+  }
+}
+
 // GET /cases/hotspots
 export const gethotspot = async (event) => {
   const auth = requireAuth(event)
@@ -198,23 +215,6 @@ export const getResolution = async (event) => {
   }
 }
 
-// POST /cases/mockpost
-export const seedMockCases = async (event) => {
-  const auth = requireAuth(event)
-  if (!auth.ok) return withCors(auth.response)
-
-  const roleError = requireRole(auth.user, 'admin')
-  if (roleError) return withCors(roleError)
-
-  try {
-    const result = await postCaseService()
-    return withCors({ statusCode: 200, body: JSON.stringify(result) })
-  } catch (error) {
-    console.error('seedMockCases error:', error)
-    return withCors({ statusCode: 500, body: JSON.stringify({ error: error.message }) })
-  }
-}
-
 // GET /cases/monthly
 export const getMonthlyReport = async (event) => {
   const auth = requireAuth(event)
@@ -232,59 +232,3 @@ export const getMonthlyReport = async (event) => {
   }
 }
 
-// DELETE /cases/{userId}
-export const deleteCase = async (event) => {
-  const auth = requireAuth(event)
-  if (!auth.ok) return withCors(auth.response)
-
-  const roleError = requireRole(auth.user, 'admin')
-  if (roleError) return withCors(roleError)
-
-  try {
-    const result = await deleteCasesByUserService(auth.user.userId)
-    return withCors({ statusCode: 200, body: JSON.stringify(result) })
-  } catch (error) {
-    console.error('deleteCase error:', error)
-    return withCors({ statusCode: 500, body: JSON.stringify({ error: 'Failed to delete cases', message: error.message }) })
-  }
-}
-
-// DELETE /cases/all
-export const deleteAllCases = async (event) => {
-  const auth = requireAuth(event)
-  if (!auth.ok) return withCors(auth.response)
-
-  const roleError = requireRole(auth.user, 'admin')
-  if (roleError) return withCors(roleError)
-
-  try {
-    const result = await deleteAllCasesService()
-    return withCors({ statusCode: 200, body: JSON.stringify(result) })
-  } catch (error) {
-    console.error('deleteAllCases error:', error)
-    return withCors({ statusCode: 500, body: JSON.stringify({ error: 'Failed to delete all cases', message: error.message }) })
-  }
-}
-
-// DELETE /cases/{caseId}
-export const deleteByCaseId = async (event) => {
-  const auth = requireAuth(event)
-  if (!auth.ok) return withCors(auth.response)
-
-  const roleError = requireRole(auth.user, 'admin')
-  if (roleError) return withCors(roleError)
-
-  try {
-    const { caseId } = event.pathParameters || {}
-
-    if (!caseId) {
-      return withCors({ statusCode: 400, body: JSON.stringify({ error: 'caseId is required' }) })
-    }
-
-    const result = await deleteByCaseIdService(caseId)
-    return withCors({ statusCode: 200, body: JSON.stringify(result) })
-  } catch (error) {
-    console.error('deleteCaseById error:', error)
-    return withCors({ statusCode: 500, body: JSON.stringify({ error: 'Failed to delete case', message: error.message }) })
-  }
-}

@@ -237,30 +237,6 @@ Resources:
             Path: /cases/monthly
             Method: GET
             RestApiId: !Ref Api
-        ApiPOSTcasesMockpost:
-          Type: Api
-          Properties:
-            Path: /cases/mockpost
-            Method: POST
-            RestApiId: !Ref Api
-        ApiDELETEcases:
-          Type: Api
-          Properties:
-            Path: /cases
-            Method: DELETE
-            RestApiId: !Ref Api
-        ApiDELETEcasesAll:
-          Type: Api
-          Properties:
-            Path: /cases/all
-            Method: DELETE
-            RestApiId: !Ref Api
-        ApiDELETEByCaseId:
-          Type: Api
-          Properties:
-            Path: /cases/{caseId}
-            Method: DELETE
-            RestApiId: !Ref Api
       Policies:
         - Statement:
             - Effect: Allow

@@ -50,6 +50,9 @@ export default function AnalysisPage() {
 
   const [menuOpen, setMenuOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
+  const [searchCenter, setSearchCenter] = useState(null)
+  const [searchLoading, setSearchLoading] = useState(false)
+  const [searchError, setSearchError] = useState('')
 
   const [topIssues, setTopIssues]     = useState([])
   const [hotspots, setHotspots]       = useState([])
@@ -129,6 +132,25 @@ export default function AnalysisPage() {
       })
       .catch(console.error)
   }, [auth])
+
+  const handleSearch = async () => {
+    const q = searchQuery.trim()
+    if (!q) return
+    setSearchLoading(true)
+    setSearchError('')
+    try {
+      const res = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&limit=1`, {
+        headers: { 'Accept-Language': 'th,en' },
+      })
+      const data = await res.json()
+      if (!data.length) { setSearchError('ไม่พบสถานที่'); return }
+      setSearchCenter({ lat: parseFloat(data[0].lat), lon: parseFloat(data[0].lon) })
+    } catch {
+      setSearchError('เกิดข้อผิดพลาด กรุณาลองใหม่')
+    } finally {
+      setSearchLoading(false)
+    }
+  }
 
   const issueTotal = topIssues.reduce((s, i) => s + i.count, 0)
 
@@ -224,19 +246,31 @@ export default function AnalysisPage() {
 
             {/* Right — Heatmap */}
             <div style={{ flex: 1, background: '#fff', borderRadius: '14px', boxShadow: '0 1px 4px rgba(0,0,0,0.08)', overflow: 'hidden', display: 'flex', flexDirection: 'column', height: '480px' }}>
-              <div style={{ padding: '0.85rem 1rem', borderBottom: '1px solid #f0f0f0', display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '0.5rem', border: '1px solid #e5e5e5', borderRadius: '8px', padding: '0.45rem 0.85rem' }}>
-                  <Search size={15} color="#aaa" />
-                  <input type="text" placeholder="บริเวณที่ต้องการตรวจสอบ (เช่น มหาวิทยาลัย, ซอย, ถนน ...)" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
-                    style={{ border: 'none', outline: 'none', background: 'transparent', fontSize: '0.85rem', width: '100%', color: '#333' }} />
+              <div style={{ padding: '0.85rem 1rem', borderBottom: '1px solid #f0f0f0', display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                  <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '0.5rem', border: `1px solid ${searchError ? '#FCA5A5' : '#e5e5e5'}`, borderRadius: '8px', padding: '0.45rem 0.85rem' }}>
+                    <Search size={15} color="#aaa" />
+                    <input
+                      type="text"
+                      placeholder="บริเวณที่ต้องการตรวจสอบ (เช่น มหาวิทยาลัย, ซอย, ถนน ...)"
+                      value={searchQuery}
+                      onChange={(e) => { setSearchQuery(e.target.value); setSearchError('') }}
+                      onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                      style={{ border: 'none', outline: 'none', background: 'transparent', fontSize: '0.85rem', width: '100%', color: '#333' }}
+                    />
+                  </div>
+                  <button
+                    onClick={handleSearch}
+                    disabled={searchLoading}
+                    style={{ padding: '0.45rem 1.25rem', borderRadius: '8px', border: '1.5px solid #3B82F6', background: '#fff', color: '#3B82F6', fontSize: '0.85rem', fontWeight: '600', cursor: searchLoading ? 'not-allowed' : 'pointer', opacity: searchLoading ? 0.6 : 1, transition: 'all 0.15s', whiteSpace: 'nowrap' }}
+                    onMouseEnter={(e) => { if (!searchLoading) { e.currentTarget.style.background = '#3B82F6'; e.currentTarget.style.color = '#fff' } }}
+                    onMouseLeave={(e) => { e.currentTarget.style.background = '#fff'; e.currentTarget.style.color = '#3B82F6' }}
+                  >{searchLoading ? 'กำลังค้นหา...' : 'ค้นหา'}</button>
                 </div>
-                <button style={{ padding: '0.45rem 1.25rem', borderRadius: '8px', border: '1.5px solid #3B82F6', background: '#fff', color: '#3B82F6', fontSize: '0.85rem', fontWeight: '600', cursor: 'pointer', transition: 'all 0.15s' }}
-                  onMouseEnter={(e) => { e.currentTarget.style.background = '#3B82F6'; e.currentTarget.style.color = '#fff' }}
-                  onMouseLeave={(e) => { e.currentTarget.style.background = '#fff'; e.currentTarget.style.color = '#3B82F6' }}
-                >ค้นหา</button>
+                {searchError && <p style={{ fontSize: '0.78rem', color: '#EF4444', margin: 0, paddingLeft: '0.25rem' }}>{searchError}</p>}
               </div>
               <div style={{ flex: 1, overflow: 'hidden' }}>
-                <HeatMap points={hotspots} />
+                <HeatMap points={hotspots} flyTo={searchCenter} />
               </div>
             </div>
           </div>

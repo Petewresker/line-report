@@ -113,6 +113,7 @@ export default function AgencyRegister() {
           "Content-Type": "application/json",
           "Authorization": `Bearer ${localStorage.getItem("TU_Smart_Service JWT Token")}`,
           userid: profile?.userId ?? "",
+          "Authorization": `Bearer ${localStorage.getItem("TU_Smart_Service JWT Token")}`
         },
         body: JSON.stringify({
           name,
