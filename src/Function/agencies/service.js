@@ -336,9 +336,11 @@ export const completeCaseService = async (caseId, imageKeyAfter, summary) => {
   if (reporterLineId) {
     try {
       let imageAfterUrl = null;
+      console.log("[DEBUG] imageKeyAfter:", imageKeyAfter);
       if (imageKeyAfter) {
         const cmd = new GetObjectCommand({ Bucket: process.env.IMAGEBUCKET_BUCKET_NAME, Key: imageKeyAfter });
         imageAfterUrl = await getSignedUrl(s3Client, cmd, { expiresIn: 3600 });
+        console.log("[DEBUG] imageAfterUrl:", imageAfterUrl);
       }
       const msg = createCompletionFlexMessage(caseData, imageAfterUrl);
       await pushLine(reporterLineId, [msg]);

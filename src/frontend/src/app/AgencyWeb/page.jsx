@@ -209,7 +209,7 @@ export default function AgencyWeb() {
       // 2. Upload photo to S3
       await fetch(uploadUrl, {
         method: "PUT",
-        headers: { "Content-Type": sendPhotoFile.type, "Authorization": `Bearer ${localStorage.getItem("TU_Smart_Service JWT Token")}` },
+        headers: { "Content-Type": sendPhotoFile.type },
         body: sendPhotoFile,
       });
 

@@ -11,13 +11,18 @@ export async function pushLine(userId, messages) {
     body: JSON.stringify({ to: userId, messages }),
   });
 
+  // ในฟังก์ชัน pushLine
   if (!response.ok) {
     const errBody = await response.text();
+    console.error("[ERROR] LINE Response:", errBody); // <--- เพิ่มบรรทัดนี้
     throw new Error(`LINE push failed: ${response.status} ${response.statusText} — ${errBody}`);
+  } else {
+    console.log("[SUCCESS] LINE push status:", response.status);
   }
 }
 
 export function createCompletionFlexMessage(caseData, imageAfterUrl) {
+  console.log("[DEBUG] createCompletionFlexMessage — imageAfterUrl:", imageAfterUrl);
   const liffUrl = process.env.LIFF_URL ?? "https://line.me/";
 
   const bodyContents = [
