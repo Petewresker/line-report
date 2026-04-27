@@ -4,7 +4,7 @@
 
 // Helper to generate random date between March - April 2026
 const randomDate = (month) => {
-  const day = Math.floor(Math.random() * 28) + 1
+  const day = Math.floor(Math.random() * 25) + 1
   const hour = Math.floor(Math.random() * 24)
   const minute = Math.floor(Math.random() * 60)
   return `2026-${month.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}T${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}:00Z`
