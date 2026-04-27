@@ -12,7 +12,7 @@ const randomDate = (month) => {
 
 // Helper to generate random status
 const randomStatus = () => {
-  const statuses = ['pending', 'in_progress', 'completed']
+  const statuses = ['PENDING', 'IN_PROGRESS', 'FINISHED']
   return statuses[Math.floor(Math.random() * statuses.length)]
 }
 
@@ -289,9 +289,9 @@ export const getCasesByType = (title) => {
 // Get summary statistics for dashboard
 export const getCaseStatistics = () => {
   const total = mockCases.length
-  const pending = mockCases.filter(c => c.status === 'pending').length
-  const inProgress = mockCases.filter(c => c.status === 'in_progress').length
-  const completed = mockCases.filter(c => c.status === 'completed').length
+  const pending = mockCases.filter(c => c.status === 'PENDING').length
+  const inProgress = mockCases.filter(c => c.status === 'IN_PROGRESS').length
+  const completed = mockCases.filter(c => c.status === 'FINISHED').length
   
   // Count by type
   const byType = {}
