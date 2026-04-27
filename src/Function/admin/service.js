@@ -116,16 +116,11 @@ export const assignReportService = async (caseId, agencyId, caseIds = []) => {
     client.send(new GetCommand({ TableName: tableName, Key: { PK: `AGENCY#${agencyId}`, SK: `METADATA#${agencyId}` } })),
   ])
 
-  if (!primaryResult.Item) {
-    return { statusCode: 404, data: { success: false, message: 'Case not found' } }
-  }
+  if (!primaryResult.Item) return { statusCode: 404, data: { success: false, message: 'Case not found' } }
+  if (primaryResult.Item.status !== 'PENDING') return { statusCode: 400, data: { success: false, message: `Cannot assign case with status "${primaryResult.Item.status}". Only PENDING cases can be assigned.` } }
   const member = agencyResult.Item
-  if (!member) {
-    return { statusCode: 404, data: { success: false, message: 'Agency not found' } }
-  }
-  if (member.Status !== 'ACTIVE') {
-    return { statusCode: 400, data: { success: false, message: 'Agency is not active' } }
-  }
+  if (!member) return { statusCode: 404, data: { success: false, message: 'Agency not found' } }
+  if (member.Status !== 'ACTIVE') return { statusCode: 400, data: { success: false, message: 'Agency is not active' } }
 
   const now = new Date().toISOString()
   const updateResults = await Promise.all(
@@ -186,9 +181,8 @@ export const rejectCaseService = async (caseId, caseIds = []) => {
   const allIds = caseIds.length > 0 ? caseIds : [caseId]
 
   const primaryResult = await client.send(new GetCommand({ TableName: tableName, Key: caseKey(caseId) }))
-  if (!primaryResult.Item) {
-    return { statusCode: 404, data: { success: false, message: 'Case not found' } }
-  }
+  if (!primaryResult.Item) return { statusCode: 404, data: { success: false, message: 'Case not found' } }
+  if (primaryResult.Item.status !== 'PENDING') return { statusCode: 400, data: { success: false, message: `Cannot reject case with status "${primaryResult.Item.status}". Only PENDING cases can be rejected.` } }
 
   const now = new Date().toISOString()
   const updateResults = await Promise.all(
