@@ -3,7 +3,7 @@ import { DynamoDBDocumentClient, GetCommand, UpdateCommand, PutCommand, DeleteCo
 import { S3Client, GetObjectCommand } from '@aws-sdk/client-s3'
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
 import { randomUUID } from 'crypto'
-import { pushLine, createCaseFlexMessage } from './line.js'
+import { pushLine, createCaseFlexMessage, createRejectedFlexMessage } from './line.js'
 
 const client = DynamoDBDocumentClient.from(new DynamoDBClient({}))
 const s3 = new S3Client({ requestChecksumCalculation: 'WHEN_REQUIRED', responseChecksumValidation: 'WHEN_REQUIRED' })
@@ -198,6 +198,18 @@ export const rejectCaseService = async (caseId, caseIds = []) => {
 
   if (rejected.length === 0) {
     return { statusCode: 409, data: { success: false, message: 'No PENDING cases to reject' } }
+  }
+
+  // ส่ง LINE notification ไปหาผู้รายงาน
+  const primaryCase = primaryResult.Item
+  if (primaryCase.userId) {
+    try {
+      const imageUrl = await getImageUrl(primaryCase.imageUrlBefore)
+      const flexMessage = createRejectedFlexMessage(primaryCase, imageUrl)
+      await pushLine(primaryCase.userId, [flexMessage])
+    } catch (err) {
+      console.error('LINE push failed:', err)
+    }
   }
 
   return {

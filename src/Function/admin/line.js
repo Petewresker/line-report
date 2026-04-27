@@ -81,3 +81,69 @@ export function createCaseFlexMessage(report, caseId, totalCount = 1, imageUrl =
     },
   }
 }
+
+export function createRejectedFlexMessage(report, imageUrl = null) {
+  return {
+    type: "flex",
+    altText: `การแจ้งเหตุของคุณถูกยกเลิก: ${report.title}`,
+    contents: {
+      type: "bubble",
+      hero: {
+        type: "image",
+        url: imageUrl || "https://incident-line-tu.s3.us-east-1.amazonaws.com/cases/case_1.jpg",
+        size: "full",
+        aspectRatio: "20:13",
+        aspectMode: "cover",
+      },
+      body: {
+        type: "box",
+        layout: "vertical",
+        contents: [
+          {
+            type: "box",
+            layout: "horizontal",
+            contents: [
+              {
+                type: "text",
+                text: report.title ?? "หัวข้อการแจ้งเหตุ",
+                style: "italic",
+                weight: "bold",
+                decoration: "underline",
+                wrap: true,
+              },
+            ],
+          },
+          {
+            type: "text",
+            text: report.description ?? "รายละเอียดของการแจ้งเหตุที่เกิดขึ้น อธิบายปัญหาที่พบ",
+            size: "md",
+            wrap: true,
+          },
+          {
+            type: "separator",
+            margin: "md",
+          },
+        ],
+      },
+      footer: {
+        type: "box",
+        layout: "vertical",
+        spacing: "sm",
+        flex: 0,
+        contents: [
+          {
+            type: "button",
+            style: "primary",
+            color: "#CC0000",
+            height: "sm",
+            action: {
+              type: "uri",
+              label: "สถานะ : ยกเลิก",
+              uri: "https://liff.line.me/2009444975-WqhF6Iws",
+            },
+          },
+        ],
+      },
+    },
+  }
+}

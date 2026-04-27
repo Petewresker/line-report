@@ -11,7 +11,7 @@ const STATUS_LABEL = {
   FORWARD:     { text: "สถานะ : กำลังส่งมอบ",       color: "#9B59B6" },
   IN_PROGRESS: { text: "สถานะ : กำลังดำเนินการ",    color: "#008000" },
   FINISHED:    { text: "สถานะ : แก้ไขสำเร็จแล้ว",   color: "#10B981" },
-  REJECTED:    { text: "สถานะ : ปฏิเสธ",            color: "#EF4444" },
+  REJECTED:    { text: "สถานะ : ยกเลิก",            color: "#CC0000" },
 };
 
 export async function handleSendReport(replyToken) {
@@ -135,6 +135,7 @@ export async function handleListCases(replyToken, userId) {
 function buildCaseBubble(c) {
   const status = STATUS_LABEL[c.status] ?? { text: c.status, color: "#888888" };
   const isFinished = c.status === "FINISHED";
+  const isRejected = c.status === "REJECTED";
   const heroUrl = (isFinished && c.imageUrlAfter) ? c.imageUrlAfter
     : c.imageUrl || "https://incident-line-tu.s3.us-east-1.amazonaws.com/cases/case_1.jpg";
 
@@ -160,6 +161,10 @@ function buildCaseBubble(c) {
     });
   }
 
+  if (!isRejected) {
+    bodyContents.push({ type: "separator", margin: "md" });
+  }
+
   return {
     type: "bubble",
     hero: {
@@ -179,8 +184,8 @@ function buildCaseBubble(c) {
       contents: [
         {
           type: "button",
-          style: isFinished ? "primary" : "link",
-          color: isFinished ? "#10B981" : undefined,
+          style: "primary",
+          color: isRejected ? "#CC0000" : (isFinished ? "#10B981" : status.color),
           height: "sm",
           action: { type: "uri", label: status.text, uri: LIFF_URL },
         },
