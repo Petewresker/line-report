@@ -119,6 +119,9 @@ export const assignReportService = async (caseId, agencyId, caseIds = []) => {
   if (!primaryResult.Item) {
     return { statusCode: 404, data: { success: false, message: 'Case not found' } }
   }
+  if (primaryResult.Item.status !== 'PENDING') {
+    return { statusCode: 400, data: { success: false, message: `Cannot assign case with status "${primaryResult.Item.status}". Only PENDING cases can be assigned.` } }
+  }
   const member = agencyResult.Item
   if (!member) {
     return { statusCode: 404, data: { success: false, message: 'Agency not found' } }
