@@ -346,7 +346,7 @@ export default function Home() {
 
         {/* Submit */}
         <button
-          className={`w-full mt-4 py-3 rounded-xl text-white font-semibold text-sm flex items-center justify-center gap-2 transition-all duration-300 cursor-pointer${submitState === "success"
+          className={`w-full mt-4 py-3 rounded-xl text-white font-semibold text-sm flex items-center justify-center gap-2 transition-all duration-300 cursor-pointer ${submitState === "success"
             ? "bg-green-500 scale-[1.02]"
             : submitState === "loading"
               ? "opacity-70 cursor-not-allowed"
