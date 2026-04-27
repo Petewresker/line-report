@@ -1,5 +1,5 @@
 // cases/index.js
-import { getCasesByUser, editCaseHandler, createCase, getPresignedUrl, gethotspot, getTrends, getResolution, getMonthlyReport, deleteAllCases } from './handler.js'
+import { getCasesByUser, editCaseHandler, createCase, getPresignedUrl, gethotspot, getTrends, getResolution, getMonthlyReport, deleteAllCases, getMockCases, createMockCases } from './handler.js'
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
@@ -11,15 +11,19 @@ export const handler = async (event) => {
   try {
     const { httpMethod, path, resource } = event
 
-    //API เทสระบบว่ามีปลายทางไหม
+    // API เทสระบบว่ามีปลายทางไหม
     if (httpMethod === 'OPTIONS') return { statusCode: 200, headers: CORS_HEADERS, body: '' }
 
     if (httpMethod === 'GET' && resource === '/cases/presigned-url') return getPresignedUrl(event)
     if (httpMethod === 'GET' && resource === '/cases')       return getCasesByUser(event)
+    
+    // แก้ไขจุดนี้: เปลี่ยนจาก GET เป็น POST และเปลี่ยนฟังก์ชันที่เรียกใช้
+    if (httpMethod === 'POST' && resource === '/cases/mock') return createMockCases(event)
+    
     if (httpMethod === 'POST' && resource === '/cases/{caseId}/edit') return editCaseHandler(event)
     if (httpMethod === 'POST' && resource === '/cases') return createCase(event)
 
-    //สําหรับการวิเคราะห์ข้อมูล
+    // สําหรับการวิเคราะห์ข้อมูล
     if (httpMethod === 'GET' && resource === '/cases/hotspots') return gethotspot(event)
     if (httpMethod === 'GET' && resource === '/cases/trends') return getTrends(event)
     if (httpMethod === 'GET' && resource === '/cases/resolution') return getResolution(event)
