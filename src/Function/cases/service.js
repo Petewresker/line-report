@@ -387,9 +387,6 @@ export const ResolutionTime = async () =>{
   return Resolution;
 };
 
-// Import mock data
-export const getMockCases = () => mockCases
-
 // Service to get all mock cases (for testing)
 export const getAllMockCasesService = async () => {
   return getMockCases()

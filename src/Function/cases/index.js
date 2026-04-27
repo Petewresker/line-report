@@ -1,9 +1,5 @@
 // cases/index.js
-<<<<<<< HEAD
-import { getCasesByUser, editCaseHandler, createCase, getPresignedUrl, gethotspot, getTrends, getResolution, getMonthlyReport, deleteAllCases } from './handler.js'
-=======
 import { getCasesByUser, editCaseHandler, createCase, getPresignedUrl, gethotspot, getTrends, getResolution, getMonthlyReport, deleteAllCases, getMockCases, createMockCases } from './handler.js'
->>>>>>> 8f604a1e2c2ddb794d2021c849ad84a1bcca8c9f
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
