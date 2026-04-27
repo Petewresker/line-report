@@ -238,6 +238,12 @@ Resources:
             Path: /cases/monthly
             Method: GET
             RestApiId: !Ref Api
+        ApiDELETEcasesAll:
+          Type: Api
+          Properties:
+            Path: /cases/all
+            Method: DELETE
+            RestApiId: !Ref Api
       Policies:
         - Statement:
             - Effect: Allow
