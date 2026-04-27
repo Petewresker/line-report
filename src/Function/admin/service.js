@@ -192,6 +192,9 @@ export const rejectCaseService = async (caseId, caseIds = []) => {
   if (!primaryResult.Item) {
     return { statusCode: 404, data: { success: false, message: 'Case not found' } }
   }
+  if (primaryResult.Item.status !== 'PENDING') {
+    return { statusCode: 400, data: { success: false, message: `Cannot reject case with status "${primaryResult.Item.status}". Only PENDING cases can be rejected.` } }
+  }
 
   const now = new Date().toISOString()
   const updateResults = await Promise.all(
