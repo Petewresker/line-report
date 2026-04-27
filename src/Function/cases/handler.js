@@ -1,5 +1,5 @@
 // handler.js - validate แล้วเรียก service
-import { editCaseService, getCasesByUserService, getAllCasesService, getAllCasesAdminService, createCaseService, getPresignedUrlService, HostspotService, trendAnalysisService, ResolutionTime, monthlyReportService, deleteAllCasesService } from './service.js'
+import { editCaseService, getCasesByUserService, getAllCasesService, getAllCasesAdminService, createCaseService, getPresignedUrlService, HostspotService, trendAnalysisService, ResolutionTime, monthlyReportService, deleteAllCasesService, getAllMockCasesService, createMockCasesService } from './service.js'
 import { fromCookie, verify as verifyJWT } from './extractJWT.js'
 
 const CORS_HEADERS = {
@@ -229,6 +229,34 @@ export const getMonthlyReport = async (event) => {
   } catch (error) {
     console.error('getMonthlyReport error:', error)
     return withCors({ statusCode: 500, body: JSON.stringify({ error: 'Failed to get monthly report', message: error.message }) })
+  }
+}
+
+// GET /cases/mock - Get all mock cases for testing (no auth required)
+export const getMockCases = async (event) => {
+  try {
+    const result = await getAllMockCasesService()
+    return withCors({ statusCode: 200, body: JSON.stringify(result) })
+  } catch (error) {
+    console.error('getMockCases error:', error)
+    return withCors({ statusCode: 500, body: JSON.stringify({ error: 'Failed to get mock cases', message: error.message }) })
+  }
+}
+
+// POST /cases/mock - Create mock cases in DynamoDB (admin only)
+export const createMockCases = async (event) => {
+  const auth = requireAuth(event)
+  if (!auth.ok) return withCors(auth.response)
+
+  const roleError = requireRole(auth.user, 'admin')
+  if (roleError) return withCors(roleError)
+
+  try {
+    const result = await createMockCasesService()
+    return withCors({ statusCode: 201, body: JSON.stringify(result) })
+  } catch (error) {
+    console.error('createMockCases error:', error)
+    return withCors({ statusCode: 500, body: JSON.stringify({ error: 'Failed to create mock cases', message: error.message }) })
   }
 }
 

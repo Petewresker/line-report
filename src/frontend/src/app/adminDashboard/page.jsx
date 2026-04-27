@@ -201,11 +201,22 @@ export default function AdminDashboard() {
     { label: 'Success', value: cases.filter(c => c.status === 'FINISHED').length, labelColor: '#10B981' },
   ]
 
+  // Partial search function - case insensitive
+  const matchesSearch = (text, query) => {
+    if (!query || !text) return true
+    const lowerQuery = query.toLowerCase()
+    const lowerText = String(text).toLowerCase()
+    return lowerText.includes(lowerQuery)
+  }
+
   const filtered = useMemo(() => cases.filter((c) => {
     if (c.status === 'REJECTED') return false
     const statusFilter = FILTER_TO_STATUS[activeFilter]
     const matchStatus = !statusFilter || c.status === statusFilter
-    const matchSearch = c.title?.includes(searchQuery) || c.caseId?.includes(searchQuery)
+    const matchSearch = !searchQuery || 
+      matchesSearch(c.title, searchQuery) || 
+      matchesSearch(c.description, searchQuery) || 
+      matchesSearch(c.caseId, searchQuery)
     return matchStatus && matchSearch
   }), [cases, activeFilter, searchQuery])
 

@@ -5,6 +5,7 @@ import { DynamoDBDocumentClient, QueryCommand, ScanCommand, PutCommand, GetComma
 import crypto from 'node:crypto'
 import { S3Client, PutObjectCommand ,GetObjectCommand } from '@aws-sdk/client-s3'
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
+import { getMockCases } from './mockData.js'
 // For DyamoDB Local testing
 const clientConfig = {}
 console.log('DYNAMODB_ENDPOINT=', process.env.DYNAMODB_ENDPOINT)
@@ -385,4 +386,47 @@ export const ResolutionTime = async () =>{
 
   return Resolution;
 };
+
+// Import mock data
+export const getMockCases = () => mockCases
+
+// Service to get all mock cases (for testing)
+export const getAllMockCasesService = async () => {
+  return getMockCases()
+}
+
+// Service to create mock cases in DynamoDB
+export const createMockCasesService = async () => {
+  const mockCases = getMockCases()
+  const createdCases = []
+  
+  for (const caseData of mockCases) {
+    const caseId = caseData.caseId
+    const now = new Date().toISOString()
+    
+    const item = {
+      PK: `CASE#${caseId}`,
+      SK: 'METADATA',
+      caseId,
+      title: caseData.title,
+      description: caseData.description,
+      userId: caseData.userId,
+      lat: caseData.lat,
+      lon: caseData.lon,
+      imageUrlBefore: caseData.imageUrlBefore,
+      status: caseData.status.toUpperCase(),
+      createdAt: caseData.createdAt,
+      updatedAt: now,
+    }
+    
+    await client.send(new PutCommand({
+      TableName: process.env.TABLE_TABLE_NAME,
+      Item: item,
+    }))
+    
+    createdCases.push(item)
+  }
+  
+  return { created: createdCases.length, cases: createdCases }
+}
 
