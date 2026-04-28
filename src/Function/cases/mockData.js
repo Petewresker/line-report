@@ -257,6 +257,7 @@ clusters.forEach((cluster) => {
       imageUrlBefore: getRandomImage(incidentType.category),
       status: randomStatus(),
       createdAt: randomDate(month),
+      AssignedAgencyID: Math.random() > 0.7 ? "AGENCY_DEV_001" : null, // 30% จะมี agencyId สำหรับ dev-agency
     })
     caseId++
   }

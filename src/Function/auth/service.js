@@ -9,15 +9,15 @@ export async function verifyLineIdToken(idToken) {
   try {
     if (process.env.NODE_ENV !== 'production') {
       if (idToken === 'dev-user') {
-        return { sub: 'U_DEV_USER', name: 'Dev User' };
+        return { sub: 'U_DEV_USER', name: 'Dev User', role: 'user' };
       }
     
       if (idToken === 'dev-agency') {
-        return { sub: 'U_DEV_AGENCY', name: 'Dev Agency' };
+        return { sub: 'U_DEV_AGENCY', name: 'Dev Agency', role: 'agency', agencyId: 'AGENCY_DEV_001' };
       }
     
       if (idToken === 'dev-admin') {
-        return { sub: 'U_DEV_ADMIN', name: 'Dev Admin' };
+        return { sub: 'U_DEV_ADMIN', name: 'Dev Admin', role: 'admin' };
       }
     }
     const url = 'https://api.line.me/oauth2/v2.1/verify';
@@ -50,6 +50,8 @@ export async function verifyLineIdToken(idToken) {
 
 export async function findOrCreateUser(lineUserId, lineProfile) {
   try {
+    console.log('findOrCreateUser input:', { lineUserId, lineProfile });
+    
     const tableName = process.env.TABLE_TABLE_NAME;
     
     if (!tableName) {
@@ -66,10 +68,12 @@ export async function findOrCreateUser(lineUserId, lineProfile) {
     
     const { Item } = await docClient.send(new GetCommand(getParams));
     
+    console.log('DynamoDB Item:', Item);
+    
     if (Item) {
       const userData = {
         userId: lineUserId,
-        role: Item.role || 'user',
+        role: lineProfile.role || Item.role,
         name: Item.name || lineProfile.name
       };
       
@@ -89,7 +93,7 @@ export async function findOrCreateUser(lineUserId, lineProfile) {
       PK: `USER#${lineUserId}`,
       SK: 'PROFILE',
       userId: lineUserId,
-      role: 'user',
+      role: lineProfile.role ,
       name: lineProfile.name,
       email: lineProfile.email,
       createdAt: new Date().toISOString()
@@ -104,7 +108,7 @@ export async function findOrCreateUser(lineUserId, lineProfile) {
     
     return {
       userId: lineUserId,
-      role: 'user',
+      role: lineProfile.role || 'user',
       name: lineProfile.name
     };
     

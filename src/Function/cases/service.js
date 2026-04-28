@@ -416,6 +416,11 @@ export const createMockCasesService = async () => {
       updatedAt: now,
     }
     
+    // เพิ่ม AssignedAgencyID ถ้ามี
+    if (caseData.AssignedAgencyID) {
+      item.AssignedAgencyID = caseData.AssignedAgencyID
+    }
+    
     await client.send(new PutCommand({
       TableName: process.env.TABLE_TABLE_NAME,
       Item: item,
