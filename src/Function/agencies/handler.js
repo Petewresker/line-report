@@ -169,7 +169,7 @@ export async function handleGetPresignUrl(event) {
   const auth = requireAuth(event);
   if (!auth.ok) return withCors(auth.response);
 
-  const roleError = requireRole(auth.user, "agency");
+  const roleError = requireRole(auth.user, ["user", "admin", "agency"]);
   if (roleError) return withCors(roleError);
 
   const { filename, contentType } = JSON.parse(event.body || "{}");
