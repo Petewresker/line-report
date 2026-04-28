@@ -21,6 +21,28 @@ export async function login(event) {
     const lineProfile = await verifyLineIdToken(idToken);
     const lineUserId = lineProfile.sub;
 
+    // For dev tokens, bypass DynamoDB and use role directly from lineProfile
+    if (lineProfile.role) {
+      const user = {
+        userId: lineUserId,
+        role: lineProfile.role,
+        name: lineProfile.name,
+        ...(lineProfile.agencyId && { agencyId: lineProfile.agencyId })
+      };
+      const token = create(user);
+      return {
+        statusCode: 200,
+        headers: {
+          'Set-Cookie': `token=${token}; HttpOnly; Secure; SameSite=None; Max-Age=604800; Path=/`
+        },
+        body: JSON.stringify({
+          success: true,
+          token: token,
+          user: user
+        })
+      };
+    }
+
     const user = await findOrCreateUser(lineUserId, lineProfile);
 
     const token = create(user);

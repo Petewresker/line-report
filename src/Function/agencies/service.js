@@ -276,7 +276,13 @@ export const acceptCaseService = async (caseId, userId) => {
   }));
 
   const agencyItem = agencyRes.Items?.[0];
-  if (!agencyItem) {
+  
+  // Dev mode: ถ้าไม่มี agency record แต่เป็น dev-agency ให้ใช้ agencyId จาก token
+  let agencyIdForUpdate = agencyItem?.AgencyID;
+  if (!agencyItem && userId === 'U_DEV_AGENCY') {
+    // Dev mode: ใช้ agencyId จาก token
+    agencyIdForUpdate = 'AGENCY_DEV_001';
+  } else if (!agencyItem) {
     return { success: false, message: "Agency not found for this user" };
   }
 
@@ -287,15 +293,15 @@ export const acceptCaseService = async (caseId, userId) => {
     return { success: false, message: "This case has not been assigned to any agency" };
   }
 
-  const matchByName = assignedByName && assignedByName === agencyItem.AgencyName
-  const matchById   = assignedById   && assignedById   === agencyItem.AgencyID
+  const matchByName = assignedByName && assignedByName === (agencyItem?.AgencyName || 'กองช่างธรรมศาสตร์')
+  const matchById   = assignedById   && assignedById   === agencyIdForUpdate
 
   if (!matchByName && !matchById) {
     return { success: false, message: "Your agency is not assigned to this case" };
   }
 
-  if (Item.status !== "FORWARD") {
-    return { success: false, message: "Case must be FORWARD before accepting" };
+  if (Item.status !== "FORWARD" && Item.status !== "PENDING") {
+    return { success: false, message: "Case must be FORWARD or PENDING before accepting" };
   }
 
   await dynamoDB.send(new UpdateCommand({
@@ -305,7 +311,7 @@ export const acceptCaseService = async (caseId, userId) => {
     ExpressionAttributeNames: { "#status": "status" },
     ExpressionAttributeValues: {
       ":status": "IN_PROGRESS",
-      ":agencyId": agencyItem.AgencyID,  // บันทึกว่าใครในกลุ่มเป็นคนรับ
+      ":agencyId": agencyIdForUpdate,
       ":now": new Date().toISOString()
     }
   }));
