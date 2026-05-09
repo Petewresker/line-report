@@ -1,4 +1,17 @@
 Transform: AWS::Serverless-2016-10-31
+Parameters:
+  JwtSecret:
+    Type: String
+    NoEcho: true
+  LineChannelAccessToken:
+    Type: String
+    NoEcho: true
+  LiffUrl:
+    Type: String
+  AgencyWebLiffUrl:
+    Type: String
+  LineChannelId:
+    Type: String
 Globals:
   Api:
     Cors:
@@ -88,9 +101,9 @@ Resources:
           TABLE_TABLE_ARN: !GetAtt IncidentTable.Arn
           IMAGEBUCKET_BUCKET_NAME: !Ref ImageBucket
           IMAGEBUCKET_BUCKET_ARN: !GetAtt ImageBucket.Arn
-          JWT_SECRET: KFCPACKAGE499
-          LINE_CHANNEL_ACCESS_TOKEN: Z2QLS2+EWWCVKzMIvRwnHLzMpue6rbTiVQ87PSrvKYggU/ca052XPbyN94S7Roks9EMUhOhc6Fz0wJXuv+8L3Re3rajyFntWbFj3KiIDygtT9TkFlwwHOKmf3m0/oQOdy17Gg43gOupEpadp+XxfJwdB04t89/1O/w1cDnyilFU=
-          LIFF_URL: https://liff.line.me/2009444975-WqhF6Iws
+          JWT_SECRET: !Ref JwtSecret
+          LINE_CHANNEL_ACCESS_TOKEN: !Ref LineChannelAccessToken
+          LIFF_URL: !Ref LiffUrl
       Events:
         ApiPOSTagenciescasescaseIdaccept:
           Type: Api
@@ -182,7 +195,7 @@ Resources:
           IMAGEBUCKET_BUCKET_NAME: !Ref ImageBucket
           IMAGEBUCKET_BUCKET_ARN: !GetAtt ImageBucket.Arn
           DYNAMODB_ENDPOINT: ''
-          JWT_SECRET: KFCPACKAGE499
+          JWT_SECRET: !Ref JwtSecret
       Events:
         ApiGETcasesPresignedUrl:
           Type: Api
@@ -294,8 +307,8 @@ Resources:
           TABLE_TABLE_ARN: !GetAtt IncidentTable.Arn
           IMAGEBUCKET_BUCKET_NAME: !Ref ImageBucket
           IMAGEBUCKET_BUCKET_ARN: !GetAtt ImageBucket.Arn
-          LINE_CHANNEL_ACCESS_TOKEN: Z2QLS2+EWWCVKzMIvRwnHLzMpue6rbTiVQ87PSrvKYggU/ca052XPbyN94S7Roks9EMUhOhc6Fz0wJXuv+8L3Re3rajyFntWbFj3KiIDygtT9TkFlwwHOKmf3m0/oQOdy17Gg43gOupEpadp+XxfJwdB04t89/1O/w1cDnyilFU=
-          LIFF_URL: https://liff.line.me/2009444975-WqhF6Iws
+          LINE_CHANNEL_ACCESS_TOKEN: !Ref LineChannelAccessToken
+          LIFF_URL: !Ref LiffUrl
       Events:
         ApiPOSTcallback:
           Type: Api
@@ -354,9 +367,9 @@ Resources:
           IMAGEBUCKET_BUCKET_NAME: !Ref ImageBucket
           IMAGEBUCKET_BUCKET_ARN: !GetAtt ImageBucket.Arn
           DYNAMODB_ENDPOINT: ''
-          JWT_SECRET: KFCPACKAGE499
-          LINE_CHANNEL_ACCESS_TOKEN: Z2QLS2+EWWCVKzMIvRwnHLzMpue6rbTiVQ87PSrvKYggU/ca052XPbyN94S7Roks9EMUhOhc6Fz0wJXuv+8L3Re3rajyFntWbFj3KiIDygtT9TkFlwwHOKmf3m0/oQOdy17Gg43gOupEpadp+XxfJwdB04t89/1O/w1cDnyilFU=
-          AGENCY_WEB_LIFF_URL: https://liff.line.me/2009444975-NsMS2WyX
+          JWT_SECRET: !Ref JwtSecret
+          LINE_CHANNEL_ACCESS_TOKEN: !Ref LineChannelAccessToken
+          AGENCY_WEB_LIFF_URL: !Ref AgencyWebLiffUrl
       Events:
         ApiPOSTadminUsers:
           Type: Api
@@ -444,8 +457,8 @@ Resources:
           TABLE_TABLE_ARN: !GetAtt IncidentTable.Arn
           IMAGEBUCKET_BUCKET_NAME: !Ref ImageBucket
           IMAGEBUCKET_BUCKET_ARN: !GetAtt ImageBucket.Arn
-          JWT_SECRET: KFCPACKAGE499
-          LINE_CHANNEL_ID: "2009444975"
+          JWT_SECRET: !Ref JwtSecret
+          LINE_CHANNEL_ID: !Ref LineChannelId
       Events:
         ApiPOSTauthlogin:
           Type: Api
