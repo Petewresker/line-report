@@ -111,16 +111,11 @@ Backend จะเป็นผู้ตรวจสอบสิทธิ์ใน
 
 # Testing Approach
 
-ระบบมีการทดสอบในหลายรูปแบบ:
-- User Flow Testing
-- Authentication Testing
-- Integration Testing
-- Multi-role Testing
-
-โดยอ้างอิงจาก:
+ระบบมีการ Testing อ้างอิงตาม:
 - Userflow
 - API Behavior
-- RBAC Logic
+- Authentication Logic
+- RBAC Flow
 
 ---
 
