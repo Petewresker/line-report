@@ -1,6 +1,7 @@
 # API Documentation
 
 ## Overview
+API Document นี้อ้างอิงจาก Google Sheet ของกลุ่ม: https://docs.google.com/spreadsheets/d/1hoJ3BpT5pQg8Nw_GRG615bwY6BLUbkhHKbE4n773-k8/edit?gid=983331672#gid=983331672
 
 Backend API ถูกออกแบบในรูปแบบ REST API สำหรับ:
 - LINE LIFF Integration

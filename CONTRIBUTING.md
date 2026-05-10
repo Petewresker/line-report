@@ -1,6 +1,6 @@
 # CONTRIBUTING
 
-Repository นี้ประกอบไปปด้วย
+Repository นี้ประกอบไปด้วย
 - Source Code
 - Design Documents
 - Planning Documents
@@ -124,8 +124,8 @@ Sprint 2-2 (6/04/2026 - 27/04/2026)
 | `README.md` | ภาพรวมของระบบและวิธีใช้งาน |
 | `docs/architecture/` | เอกสารออกแบบระบบและ Authentication Flow |
 | `docs/testing/` | เอกสารการทดสอบระบบ |
-| `docs/meetings/` | บันทึกการประชุมและ Sprint Planning |
-| `docs/management/` | เอกสารการจัดการงานและการแบ่งหน้าที่ |
+| `docs/api-docs/` | เอกสาร API |
+| `docs/artifact/` | เอกสารรวบรวม Artifact |
 
 ---
 
