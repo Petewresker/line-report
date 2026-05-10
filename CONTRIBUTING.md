@@ -12,7 +12,7 @@ Repository นี้ประกอบไปปด้วย
 
 # Member
 
-| Member | Role | Responsibility |
+| Student ID | Name | NickName | Role | Responsibility |
 |---|---|---|
 | 6709681107 | บริวัฒน์ สงนุ้ย | ทีม | Backend / Authentication / System Design | Implemet Backend Service, Design JWT Authentication, RBAC Flow, Backend Architecture, API |
 | 6709616764 | พีรภัทร เอกดิษฐ์ | พีท | Frontend / LIFF Integration / Deployment / System Design | Implement Frontend, เชื่อมต่อ LINE LIFF และ Backend API, ดูแล Environment Setup|
